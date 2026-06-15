@@ -25,7 +25,7 @@ def test_saffron(
         hash_bits: int = 20,
         threshold: int = 20,
         verbose: int = 0,
-) -> Tuple[float, float, float, float, float]:
+) -> Tuple[float, float, float, float, float, float, float]:
     """
     Test the Saffron implementation on a given dataset and query set.
 
@@ -73,13 +73,19 @@ def test_saffron(
     total_precision: float = 0.0
     total_recall: float = 0.0
     num_queries: int = query_set.shape[0]
+
+    # Add Hash and Decode Times
+    total_hash_time: float = 0.0
+    total_decode_time: float = 0.0
     
     for qidx in tqdm(range(num_queries), desc="Testing queries"):
         query: ndarray = query_set[qidx]
         
         # Saffron search
         start_time: float = time.time()
-        retrieved_indices: List[int] = saffron_index.search(query) # type: ignore
+        # retrieved_indices: List[int] = saffron_index.search(query) # type: ignore
+        # Updating saffron search with stats
+        retrieved_indices, hashing_time, decoding_time = saffron_index.search(query)
         saffron_time: float = time.time() - start_time
         
         # Naive search
@@ -110,13 +116,22 @@ def test_saffron(
         total_naive_time += naive_time
         total_precision += precision
         total_recall += recall
+        
+        # Total Hash and Decode Times
+        total_hash_time += hashing_time
+        total_decode_time += decoding_time
     
     avg_saffron_time: float = total_saffron_time / num_queries
     avg_naive_time: float = total_naive_time / num_queries
     avg_precision: float = total_precision / num_queries
     avg_recall: float = total_recall / num_queries
+
+    # Total Hash and Decode Times
+    avg_hash_time: float = total_hash_time / num_queries
+    avg_decode_time: float = total_decode_time / num_queries
     
-    return idx_time, avg_saffron_time, avg_naive_time, avg_precision, avg_recall
+    return idx_time, avg_saffron_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_decode_time
+
 
 
 if __name__ == "__main__":
@@ -222,7 +237,7 @@ if __name__ == "__main__":
             for nh, hb, th in zip(args.num_hashes, args.hash_bits, args.threshold):
                 print(f"\n>>> Running: Dataset={dname}, Algo={algo}, k={args.num_neighbors}, hashes={nh}, bits={hb}, threshold={th}")
                 
-                idx_time, avg_saffron_time, avg_naive_time, avg_precision, avg_recall = test_saffron(
+                idx_time, avg_saffron_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_decode_time = test_saffron(
                     full_dataset, 
                     full_query_set, 
                     args.num_neighbors,
@@ -239,4 +254,6 @@ if __name__ == "__main__":
                 print(f"Avg Naive Search:   {avg_naive_time:.6f} seconds")
                 print(f"Avg Precision:      {avg_precision:.4f}")
                 print(f"Avg Recall:         {avg_recall:.4f}")
+                print(f"Avg Hash Time:     {avg_hash_time:.6f} seconds")
+                print(f"Avg Decode Time:   {avg_decode_time:.6f} seconds")
 
