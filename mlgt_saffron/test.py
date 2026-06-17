@@ -85,7 +85,17 @@ def test_saffron(
         start_time: float = time.time()
         # retrieved_indices: List[int] = saffron_index.search(query) # type: ignore
         # Updating saffron search with stats
-        retrieved_indices, hashing_time, decoding_time = saffron_index.search(query)
+        result = saffron_index.search(query)
+
+        if isinstance(result, tuple):
+            retrieved_indices, hashing_time, decoding_time = result
+        else:
+            retrieved_indices = result
+            hashing_time = 0.0
+            decoding_time = 0.0
+
+
+
         saffron_time: float = time.time() - start_time
         
         # Naive search

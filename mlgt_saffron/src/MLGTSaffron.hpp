@@ -156,7 +156,7 @@ public:
      * @return vector<uint> Top K item indices.
      */
     // Changed search to return (topK, hashing_time, decoding_time)
-    inline tuple<vector<uint>, double, double> search(pybind11::array_t<float> query_arr) {
+    inline std::tuple<std::vector<uint>, double, double> search(pybind11::array_t<float> query_arr) {
         Eigen::Map<const Eigen::VectorXf> q_raw(query_arr.data(), dimension_);
         Eigen::VectorXf query = q_raw;
         if (normalize_) {
@@ -183,7 +183,7 @@ public:
      * @return vector<uint> Top K item indices.
      */
     inline vector<uint> operator()(pybind11::array_t<float> query_arr) {
-        return search(query_arr);
+        return std::get<0>(search(query_arr));
     }
 };
 

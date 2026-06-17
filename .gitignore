@@ -40,6 +40,8 @@ __pycache__/*
 *.npz
 *.pyc
 *.pyi
+# virtual environments
+venv
 
 # Large files
 data/*
