@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import math, cmath, random, statistics
 import os, sys, gc, time
-
+import matplotlib.pyplot as plt
 import numpy as np
 from numpy import array, ndarray, random as npr, linalg
-
+import csv
 from tqdm import tqdm
 from typing import List, Tuple, Dict, Set, Literal, Optional, Callable, Iterable, Union, Any
 from argparse import ArgumentParser
@@ -15,6 +15,70 @@ sys.path.append(CUR_DIR)
 DATASETS = ["imagenet", "imdb_wiki", "insta_1m", "mirflickr"]
 
 from mlgt_saffron import SaffronIndex, MLGTSaffron, BloomGroupTestingSaffron, MLGTGlobal
+
+# Global Constant
+CURRENT_DATASET = None
+ALGO_NAME = None
+
+# Plotting Search Time Bar chart
+def plot_saffron_search_times(
+    saffron_times: List[float],
+    dataset_name: str,
+    algo_name: str,
+):
+    """Save a bar chart of Saffron search times."""
+
+    os.makedirs("plots", exist_ok=True)
+
+    queries = range(1, len(saffron_times) + 1)
+    times_ms = [t * 1000 for t in saffron_times]
+
+    plt.figure(figsize=(12, 5))
+    plt.bar(queries, times_ms)
+
+    plt.xlabel("Query Number")
+    plt.ylabel("Search Time (ms)")
+    plt.title(f"Saffron Search Times - {dataset_name}- {algo_name}")
+    plt.grid(axis="y", alpha=0.3)
+
+    filename = os.path.join(
+        "plots",
+        f"saffron_search_times_{dataset_name.lower()}_{algo_name.lower()}.png"
+    )
+
+    plt.tight_layout()
+    plt.savefig(filename, dpi=300)
+    plt.close()
+
+    print(f"Saved plot to {filename}")
+
+def save_saffron_search_times_csv(
+    saffron_times: List[float],
+    hash_times: List[float],
+    decode_times: List[float],
+    dataset_name: str,
+    algo_name: str,
+):
+    """Save Saffron timings to a CSV."""
+
+    os.makedirs("results", exist_ok=True)
+
+    filename = os.path.join(
+        "results",
+        f"saffron_search_times_{dataset_name.lower()}_{algo_name.lower()}.csv"
+    )
+
+    with open(filename, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Query", "Saffron Time", "Hash Time", "Decode Time"])
+
+        for i, (s, h, d) in enumerate(zip(saffron_times, hash_times, decode_times), start=1):
+            writer.writerow([i, s, h, d])
+
+    print(f"Saved CSV to {filename}")
+
+
+
 
 def test_saffron(
         dataset: ndarray,
@@ -73,6 +137,11 @@ def test_saffron(
     total_precision: float = 0.0
     total_recall: float = 0.0
     num_queries: int = query_set.shape[0]
+    # List of Saffron and Search times
+    saffron_times: List[float] = []
+    hash_times: List[float] = []
+    decode_times: List[float] = []
+    
 
     # Add Hash and Decode Times
     total_hash_time: float = 0.0
@@ -87,6 +156,7 @@ def test_saffron(
         # Updating saffron search with stats
         result = saffron_index.search(query)
 
+        # Had to Add this to recieve hash and decode time of MLGTSaffron because its not supported for other methods
         if isinstance(result, tuple):
             retrieved_indices, hashing_time, decoding_time = result
         else:
@@ -97,6 +167,11 @@ def test_saffron(
 
 
         saffron_time: float = time.time() - start_time
+        # Appending to List of Times
+        saffron_times.append(saffron_time)
+        hash_times.append(hashing_time)
+        decode_times.append(decoding_time)
+
         
         # Naive search
         start_time = time.time()
@@ -139,7 +214,10 @@ def test_saffron(
     # Total Hash and Decode Times
     avg_hash_time: float = total_hash_time / num_queries
     avg_decode_time: float = total_decode_time / num_queries
-    
+    # Plot Histogram 
+    # plot_saffron_search_times(saffron_times, CURRENT_DATASET, ALGO_NAME)
+    # Save CSV
+    save_saffron_search_times_csv( saffron_times, hash_times, decode_times, CURRENT_DATASET, ALGO_NAME)
     return idx_time, avg_saffron_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_decode_time
 
 
@@ -229,6 +307,7 @@ if __name__ == "__main__":
 
     # Nested loops for parameters
     for dname in datasets_to_run:
+        CURRENT_DATASET = dname
         # Load data for this dataset
         data_path: str = os.path.join(args.data_path, dname)
         try:
@@ -244,9 +323,11 @@ if __name__ == "__main__":
             full_query_set = full_query_set[:args.num_queries, :]
 
         for algo in args.algo:
+            ALGO_NAME = algo
             for nh, hb, th in zip(args.num_hashes, args.hash_bits, args.threshold):
                 print(f"\n>>> Running: Dataset={dname}, Algo={algo}, k={args.num_neighbors}, hashes={nh}, bits={hb}, threshold={th}")
                 
+
                 idx_time, avg_saffron_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_decode_time = test_saffron(
                     full_dataset, 
                     full_query_set, 
