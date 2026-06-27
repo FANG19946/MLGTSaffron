@@ -7,7 +7,7 @@
 
 struct HashNode
 {
-    vector<vector<vector<uint>>> postings;
+    unordered_map<uint, vector<uint>> postings;
 };
 
 
@@ -16,10 +16,9 @@ struct HashNode
  * 
  * Hash Function range is 0 to R
  * We have L such hash functions
- * The inverted index will store an array of size R which will have the hash_vals and a pointer to an array of size L
- * Each array of size L will have a pointer to the an array of pool indices  
- * Each pool index will then have the list of the global ids that set that hash for that pool, hash function, hash val
- * How to access the elements: hash_buckets_[hash_val].postings[hash_func_num][pool_num][global_ids]
+ * The inverted index will store an array of size R which will have the hash_vals and a pointer to an flattened hashmap
+ * The hashmap key = hash_function * num_pools + pool_index
+ * How to access the elements: hash_buckets_[hash_val].postings[key]
  * 
  */
 class OrionIndex {
@@ -47,6 +46,19 @@ public:
     }
 
     /**
+     * @brief Generates Key for the Hashmap
+     *  
+     * @param num_pools Number of pools
+     * @param hash_index The id of Hash Function
+     * @param pool_index The index of the pool
+     */
+    
+    inline uint getPoolHashKey(uint hash_index, uint pool_index, uint num_pools) const {
+        uint key = hash_index * num_pools + pool_index;
+        return key;
+    }
+
+    /**
      * @brief Builds the inverted index from given item hashes.
      *  
      * @param all_hashes A 2D vector where all_hashes[i] contains the hashes for item i.
@@ -58,14 +70,9 @@ public:
         num_hashes_ = all_hashes[0].size();
         uint num_pools = item_indices.size();
         
-        hash_buckets_.assign(hash_range_, HashNode());
-        for(uint h_val = 0; h_val < hash_range_; h_val++ ){
-            hash_buckets_[h_val].postings.resize(num_hashes_);
-            for(uint h = 0; h < num_hashes_; h++){
-                hash_buckets_[h_val].postings[h].resize(num_pools);
-                
-            }
-        }
+        hash_buckets_.clear();
+        hash_buckets_.resize(hash_range_);
+        
 
  
         // for(uint h_val = 0; h_val < hash_range_; h_val++ ){
@@ -81,7 +88,8 @@ public:
             for(uint item : item_indices[pool_id]){
                 for(uint h = 0; h < num_hashes_; h++){
                     uint h_val = all_hashes[item][h];
-                    hash_buckets_[h_val].postings[h][pool_id].push_back(item);
+                    uint key = getPoolHashKey(h, pool_id, num_pools);
+                    hash_buckets_[h_val].postings[key].push_back(item);
                 }
             }
         }
