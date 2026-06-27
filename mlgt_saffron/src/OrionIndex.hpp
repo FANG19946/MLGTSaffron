@@ -56,9 +56,9 @@ public:
         if (all_hashes.empty() || item_indices.empty()) return;
         
         num_hashes_ = all_hashes[0].size();
-        num_pools = item_indices.size();
+        uint num_pools = item_indices.size();
         
-        hash_buckets_.resize(hash_range_);
+        hash_buckets_.assign(hash_range_, HashNode());
         for(uint h_val = 0; h_val < hash_range_; h_val++ ){
             hash_buckets_[h_val].postings.resize(num_hashes_);
             for(uint h = 0; h < num_hashes_; h++){
@@ -67,9 +67,7 @@ public:
             }
         }
 
-        
-        
-        uint N = item_indices.size();
+ 
         // for(uint h_val = 0; h_val < hash_range_; h_val++ ){
         //     for(uint h = 0; h < num_hashes_; h++){
         //         for(uint pool_id = 0; pool_id < num_pools; pool_id++){
@@ -80,40 +78,11 @@ public:
 
 
         for(uint pool_id = 0; pool_id < num_pools; pool_id++ ){
-            for(uint item : item_indices[i]){
+            for(uint item : item_indices[pool_id]){
                 for(uint h = 0; h < num_hashes_; h++){
-                    h_val = all_hashes[item][h];
+                    uint h_val = all_hashes[item][h];
                     hash_buckets_[h_val].postings[h][pool_id].push_back(item);
                 }
-            }
-        }
-
-        // 26-6-26
-
-
-
-
-
-        for (uint h = 0; h < num_hashes_; ++h) {
-            vector<pair<uint, uint>> hash_item_pairs;
-            hash_item_pairs.reserve(N);
-            for (uint i = 0; i < N; ++i) {
-                uint global_idx = item_indices[i];
-                hash_item_pairs.emplace_back(all_hashes[i][h], global_idx);
-            }
-            std::sort(hash_item_pairs.begin(), hash_item_pairs.end());
-
-            for (uint i = 0; i < N; ) {
-                uint h_val = hash_item_pairs[i].first;
-                uint start_idx = i;
-                while (i + 1 < N && hash_item_pairs[i + 1].first == h_val) i++;
-                
-                uint count = i - start_idx + 1;
-                hash_buckets_[h].push_back({h_val, (uint)doc_index_.size(), count});
-                for (uint j = start_idx; j <= i; ++j) {
-                    doc_index_.push_back(hash_item_pairs[j].second);
-                }
-                i++;
             }
         }
     }
@@ -124,37 +93,37 @@ public:
      * @param query_hashes The pre-computed hashes of the query vector.
      * @return vector<uint> A list of item indices that are candidates for similarity.
      */
-    inline vector<uint> get_matches(const vector<uint> &query_hashes) const {
-        if (num_hashes_ == 0 || doc_index_.empty()) return {};
+    // inline vector<uint> get_matches(const vector<uint> &query_hashes) const {
+    //     if (num_hashes_ == 0 || doc_index_.empty()) return {};
         
-        unordered_map<uint, uint> counts;
-        for (uint h = 0; h < num_hashes_; ++h) {
-            uint q_h = query_hashes[h];
-            const auto& buckets = hash_buckets_[h];
-            auto it = std::lower_bound(buckets.begin(), buckets.end(), q_h, 
-                [](const HashBucket& b, uint val) { return b.hash_val < val; });
+    //     unordered_map<uint, uint> counts;
+    //     for (uint h = 0; h < num_hashes_; ++h) {
+    //         uint q_h = query_hashes[h];
+    //         const auto& buckets = hash_buckets_[h];
+    //         auto it = std::lower_bound(buckets.begin(), buckets.end(), q_h, 
+    //             [](const HashBucket& b, uint val) { return b.hash_val < val; });
             
-            if (it != buckets.end() && it->hash_val == q_h) {
-                for (uint i = 0; i < it->num_items; ++i) {
-                    counts[doc_index_[it->start_idx + i]]++;
-                }
-            }
-        }
+    //         if (it != buckets.end() && it->hash_val == q_h) {
+    //             for (uint i = 0; i < it->num_items; ++i) {
+    //                 counts[doc_index_[it->start_idx + i]]++;
+    //             }
+    //         }
+    //     }
 
-        vector<uint> matches;
-        for (auto const& [item_idx, count] : counts) {
-            if (count >= threshold_) {
-                matches.push_back(item_idx);
-            }
-        }
-        return matches;
-    }
+    //     vector<uint> matches;
+    //     for (auto const& [item_idx, count] : counts) {
+    //         if (count >= threshold_) {
+    //             matches.push_back(item_idx);
+    //         }
+    //     }
+    //     return matches;
+    // }
     
     /**
      * @brief Returns the number of hash functions the index expects.
      * @return uint Hash count.
      */
-    inline uint num_hashes() const { return num_hashes_; }
+    // inline uint num_hashes() const { return num_hashes_; }
 };
 
 
