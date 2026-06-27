@@ -10,6 +10,7 @@
 #include "MLGTGlobal.hpp"
 #include "BloomHashIndex.hpp"
 #include "BloomGroupTestingSaffron.hpp"
+#include "OrionIndex.hpp"
 
 namespace py = pybind11;
 
@@ -187,5 +188,19 @@ PYBIND11_MODULE(mlgt_saffron, m) {
           py::arg("data_points"), 
           py::arg("normalize") = true,
           "Normalizes a dataset if requested.");
+
+
+     // OrionIndex
+     py::class_<OrionIndex>(m, "OrionIndex",
+     "Global inverted index organized by hash value.")
+     .def(py::init<uint, uint, uint>(),
+         py::arg("hash_range"),
+         py::arg("num_hashes"),
+         py::arg("threshold"))
+     .def("build",
+         &OrionIndex::build,
+         py::arg("all_hashes"),
+         py::arg("item_indices"));
+    
 }
 
