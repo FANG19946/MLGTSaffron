@@ -93,6 +93,41 @@ public:
                 }
             }
         }
+
+        double gb = memoryUsage() / (1024.0 * 1024.0 * 1024.0);
+
+        std::cout << "Approximate index size = "
+                << gb
+                << " GB\n";
+        
+    }
+
+
+    inline size_t memoryUsage() const {
+        size_t bytes = 0;
+
+        // OrionIndex object itself
+        bytes += sizeof(*this);
+
+        // hash_buckets_ vector allocation
+        bytes += hash_buckets_.capacity() * sizeof(HashNode);
+
+        for (const auto& bucket : hash_buckets_) {
+
+            // unordered_map bucket array
+            bytes += bucket.postings.bucket_count() * sizeof(void*);
+
+            // each hashmap node
+            bytes += bucket.postings.size() *
+                    sizeof(decltype(bucket.postings)::value_type);
+
+            // posting lists
+            for (const auto& [key, posting] : bucket.postings) {
+                bytes += posting.capacity() * sizeof(uint);
+            }
+        }
+
+        return bytes;
     }
 
     /**

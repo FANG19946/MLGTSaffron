@@ -16,6 +16,7 @@ from mlgt_saffron import (
     BloomHashFunction,
     computePools,
     normalizeDataset,
+    GlobalInvertedIndex,
 )
 
 DATASETS = ["imagenet", "imdb_wiki", "insta_1m", "mirflickr"]
@@ -82,11 +83,11 @@ if __name__ == "__main__":
 
     index.build(
         all_hashes,
-        pooling.items_to_pools,
+        pooling.pools_to_items,
     )
 
     elapsed = time.time() - start
 
     print(f"Index built in {elapsed:.3f} seconds.")
-    print("Sleeping for 120 seconds...")
-    time.sleep(120)
+    print("Sleeping for 2 seconds...")
+    time.sleep(2)

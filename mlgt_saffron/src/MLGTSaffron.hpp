@@ -94,6 +94,17 @@ public:
             pool_indices_[p].build(pool_hashes, pools_.pools_to_items[p]);
         }
 
+        // Logging memory of All Poolwise Indexes created
+        if (debug_ > 0) {
+            size_t GI_memory=0;
+            for (int p = 0; p < (int)num_pools_; ++p) {
+                
+                GI_memory+=pool_indices_[p].memoryUsage();
+            }
+            double gb = GI_memory / (1024.0 * 1024.0 * 1024.0);
+            cout<<"Total Memory used in Poolwise Global Inverted Index  "<<gb<<"GB \n";
+        }
+
         // Adding number of tests logging
         total_tests_ = num_pools_ * signature_length_;
         if (debug_ > 0) {

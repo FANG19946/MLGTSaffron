@@ -111,6 +111,26 @@ public:
      * @return uint Hash count.
      */
     inline uint num_hashes() const { return num_hashes_; }
+
+    inline size_t memoryUsage() const {
+        size_t bytes = 0;
+
+        // GlobalInvertedIndex object itself
+        bytes += sizeof(*this);
+
+        // Outer vector allocation
+        bytes += hash_buckets_.capacity() * sizeof(std::vector<HashBucket>);
+
+        // Each inner vector's HashBucket array
+        for (const auto& buckets : hash_buckets_) {
+            bytes += buckets.capacity() * sizeof(HashBucket);
+        }
+
+        // doc_index allocation
+        bytes += doc_index_.capacity() * sizeof(uint);
+
+        return bytes;
+    }
 };
 
 
