@@ -27,6 +27,7 @@ public:
     uint hash_range_;
     uint num_hashes_;
     uint threshold_;
+    uint num_pools_;
 
     /**
      * @brief Empty constructor for OrionIndex.
@@ -48,13 +49,12 @@ public:
     /**
      * @brief Generates Key for the Hashmap
      *  
-     * @param num_pools Number of pools
      * @param hash_index The id of Hash Function
      * @param pool_index The index of the pool
      */
     
-    inline uint getPoolHashKey(uint hash_index, uint pool_index, uint num_pools) const {
-        uint key = hash_index * num_pools + pool_index;
+    inline uint getPoolHashKey(uint hash_index, uint pool_index) const {
+        uint key = hash_index * num_pools_ + pool_index;
         return key;
     }
 
@@ -68,27 +68,16 @@ public:
         if (all_hashes.empty() || item_indices.empty()) return;
         
         num_hashes_ = all_hashes[0].size();
-        uint num_pools = item_indices.size();
+        num_pools_ = item_indices.size();
         
         hash_buckets_.clear();
         hash_buckets_.resize(hash_range_);
         
-
- 
-        // for(uint h_val = 0; h_val < hash_range_; h_val++ ){
-        //     for(uint h = 0; h < num_hashes_; h++){
-        //         for(uint pool_id = 0; pool_id < num_pools; pool_id++){
-        //             hash_buckets_[h_val].postings[h][pool_id]
-        //         }
-        //     }
-        // }
-
-
         for(uint pool_id = 0; pool_id < num_pools; pool_id++ ){
             for(uint item : item_indices[pool_id]){
                 for(uint h = 0; h < num_hashes_; h++){
                     uint h_val = all_hashes[item][h];
-                    uint key = getPoolHashKey(h, pool_id, num_pools);
+                    uint key = getPoolHashKey(h, pool_id);
                     hash_buckets_[h_val].postings[key].push_back(item);
                 }
             }
@@ -131,36 +120,45 @@ public:
     }
 
     /**
-     * @brief Retrieves global item indices that match at least `threshold_` query hashes.
-     * 
+     * @brief It returns the result of a test as 0 (Negative) or 1 (Positive) and the defective item identified.
+     * IMPORTANT
+     * Please note that if the test result is negaative the uint value is set by default to 0.
      * @param query_hashes The pre-computed hashes of the query vector.
-     * @return vector<uint> A list of item indices that are candidates for similarity.
+     * @param pool_index Index of the pool being evaluated.
+     * @return pair<bool, uint> Test Result and if positive also has the global_id of the positive item.
      */
-    // inline vector<uint> get_matches(const vector<uint> &query_hashes) const {
-    //     if (num_hashes_ == 0 || doc_index_.empty()) return {};
+    inline pair<bool, uint> get_matches(const vector<uint> &query_hashes, uint pool_index) const {
+        if (num_hashes_ == 0 ) return {false, 0};
         
-    //     unordered_map<uint, uint> counts;
-    //     for (uint h = 0; h < num_hashes_; ++h) {
-    //         uint q_h = query_hashes[h];
-    //         const auto& buckets = hash_buckets_[h];
-    //         auto it = std::lower_bound(buckets.begin(), buckets.end(), q_h, 
-    //             [](const HashBucket& b, uint val) { return b.hash_val < val; });
-            
-    //         if (it != buckets.end() && it->hash_val == q_h) {
-    //             for (uint i = 0; i < it->num_items; ++i) {
-    //                 counts[doc_index_[it->start_idx + i]]++;
-    //             }
-    //         }
-    //     }
+                    
+        unordered_map<uint, uint> counts;
+        uint hash_misses = 0; 
 
-    //     vector<uint> matches;
-    //     for (auto const& [item_idx, count] : counts) {
-    //         if (count >= threshold_) {
-    //             matches.push_back(item_idx);
-    //         }
-    //     }
-    //     return matches;
-    // }
+        for(uint h = 0; h < num_hashes_ ; h++){
+            uint q_h = query_hashes[h];
+            uint key = getPoolHashKey(h, pool_index);
+
+            // Checking if query hash can match threshold
+            if(hash_misses > num_hashes_ - threshold_){
+                return {false, 0};
+            }
+            
+            // Skip if Query Hash doesn't exist in Index
+            auto it = hash_buckets_[q_h].postings.find(key);
+            if(it == hash_buckets_[q_h].postings.end()){
+                hash_misses++;
+                continue;
+            }
+
+            // it->second is just hash_buckets_[q_h].postings[key] 
+            for(uint global_id : it->second ){
+                if(++counts[global_id] >= threshold_){
+                    return {true, global_id};
+                }
+            }              
+        }
+        return {false, 0};        
+    }
     
     /**
      * @brief Returns the number of hash functions the index expects.
