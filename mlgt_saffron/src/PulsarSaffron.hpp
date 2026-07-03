@@ -15,17 +15,17 @@
  * @return vector<vector<uint>> signature_map[item_id][j] gives the j-th signature_number for item_id.
  */
 
- inline vector<vector<uint>> generateSignatureMap(uint num_permutations = 3){
+ inline vector<vector<uint>> getPermutationMap(uint num_permutations = 3){
     vector<uint> id_to_sign;
     vector<uint> permutation;
-    vector<vector<uint>> signature_map;
+    vector<vector<uint>> permutation_map;
     signature_map.resize(num_features_, vector<uint>(num_permutations));
 
     id_to_sign.resize(num_features_);
     
     for(uint i=0; i<num_features_; i++){
         id_to_sign[i]=i+1;
-        signature_map[i][0] = id_to_sign[i]; 
+        permutation_map[i][0] = id_to_sign[i]; 
     }
 
     uint random_seed = 10;
@@ -34,28 +34,48 @@
         std::mt19937 rng(random_seed + k);   
         std::shuffle(permutation.begin(), permutation.end(), rng);
         for(uint i=0; i < num_features_; i++){
-            signature_map[i][k] = permutation[i];
+            permutation_map[i][k] = permutation[i];
         }
     }
-    return signature_map;
+    return permutation_map;
  }
 
 
 
-// 02-07-26
+
+
+/**
+ * @brief Generates Signature for a block.
+ * @param signature_number The signature_number of an item.
+ * @return vector<bool> boolean signature of the block which includes the binary number concatenated with its complement.
+ */
+ inline vector<bool> getBlockSignature(uint signature_number){
+    
+    uint L = ceil(log2(num_features_)); // The L value in Saffron.
+    vector<bool> block_signature(2*L);
+
+    for(uint i=0; i<L; i++){
+        block_signature[i] = (signature_number >> (L - 1 - i)) & 1;
+        block_signature[i+L] = !block_signature[i];
+    }
+
+    return block_signature;
+ }
+
 
 /**
  * @brief Generates a robust 6L SAFFRON signature for singleton and doubleton recovery.
- * The signature consists of 3 blocks, each containing a parity bit, U1, and ~U1.
- * Block 1: Always active (h=1).
- * Block 2: Active based on a pseudo-random hash bit H1(i).
- * Block 3: Active based on a pseudo-random hash bit H2(i).
+ * The boolean signature of the signature_number concatenated with its complement for all its permutations.
+ * The signature consists of 3 blocks by default, each containing U1, and ~U1.
+ * Block 1: Item signature which is item_id + 1 concatenated with its complement.
+ * Block 2: Block Signature based on Permutation 1.
+ * Block 3: Block Signature based on Permutation 2.
  * 
- * @param j The item index.
- * @param signature_length Total length of the 6L signature (3 * (2*L + 1)).
+ * @param item_id The item index.
+ * @param permutation_map Contains the permuations for the item index.
  * @return vector<bool> The boolean signature.
  */
-inline vector<bool> getSignature(uint j, uint signature_length) {
+inline vector<bool> getSignature(uint item_id, vector<uint> permutation_map) {
     uint block_len = signature_length / 3;
     uint num_bits = (block_len - 1) / 2;
     vector<bool> signature(signature_length, false);
