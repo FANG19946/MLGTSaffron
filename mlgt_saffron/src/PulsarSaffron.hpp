@@ -71,29 +71,23 @@
  * Block 2: Block Signature based on Permutation 1.
  * Block 3: Block Signature based on Permutation 2.
  * 
- * @param item_id The item index.
  * @param permutation_map Contains the permuations for the item index.
  * @return vector<bool> The boolean signature.
  */
-inline vector<bool> getSignature(uint item_id, vector<uint> permutation_map) {
-    uint block_len = signature_length / 3;
-    uint num_bits = (block_len - 1) / 2;
-    vector<bool> signature(signature_length, false);
+inline vector<bool> getSignature( const vector<uint> &permutation_map) {
     
-    // Block 1: Always 1
-    // Block 2 & 3: Random masks to separate items in doubletons
-    bool h[3] = { true, (bool)((j >> 7) & 1), (bool)((j >> 13) & 1) }; // Simple deterministic bits
+    uint L = ceil(log2(num_features_)); // The L value in Saffron.
+    uint num_permutations = permutation_map.size();
+    
+    vector<bool> signature;
+    signature.reserve(num_permutations * (2 * L));  
+    vector<bool> block_signature;
 
-    for (uint b = 0; b < 3; ++b) {
-        if (!h[b]) continue;
-        uint offset = b * block_len;
-        signature[offset] = true; // Parity bit
-        for (uint bit_idx = 0; bit_idx < num_bits; ++bit_idx) {
-            bool bit = (j & (1 << bit_idx)) != 0;
-            signature[offset + 1 + bit_idx] = bit;
-            signature[offset + 1 + num_bits + bit_idx] = !bit;
-        }
+    for(auto permutation : permutation_map){
+        block_signature = getBlockSignature(permutation);
+        signature.insert(signature.end(),block_signature.begin(),block_signature.end());
     }
+
     return signature;
 }
 
