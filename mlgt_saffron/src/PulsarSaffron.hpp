@@ -3,7 +3,7 @@
 
 
 #include "headers.hpp"
-#include "PoolingMatrix.hpp"
+#include "NovaMatrix.hpp"
 
 
 /**
@@ -19,7 +19,7 @@
     vector<uint> id_to_sign;
     vector<uint> permutation;
     vector<vector<uint>> permutation_map;
-    signature_map.resize(num_features_, vector<uint>(num_permutations));
+    permutation_map.resize(num_features_, vector<uint>(num_permutations));
 
     id_to_sign.resize(num_features_);
     
@@ -142,6 +142,7 @@
     return extended_pooling_matrix;
 
  }
+//  4-7-26
 
 /**
  * @brief Decodes a single block of a signature.
@@ -150,7 +151,7 @@
  * @return optional<uint> The decoded item index, or nullopt if 0 or multi-pool.
  */
 inline optional<uint> decodeBlock(const vector<bool>& measurement) {
-    if (!measurement[0]) return nullopt; // Parity 0 -> even/zero items
+    
     uint num_bits = (measurement.size() - 1) / 2;
     uint index = 0;
     for (uint bit_idx = 0; bit_idx < num_bits; ++bit_idx) {
