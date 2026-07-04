@@ -108,19 +108,38 @@
 
 
 /**
- * @brief Generate the extended Pooling Matrix by row-wise replacement of item with it's complete signature.
+ * @brief Generate the extended Pooling Matrix by row-wise replacement of item with its complete signature.
  * 
  * @param base_pooling_matrix The pooling matrix for the test bundles i.e. the left regular graph for test bundles.
- * @param permutation_map The permutation_map which has signature_numbers for the item_ids.
+ * @param signature_matrix vector<vector<bool>> signature_matrix[item_id] has full signature of item.
  * @return PoolingMatrix which is the Extended Pooling Matrix.
  */
- inline PoolingMatrix getExtendedPoolingMatrix(const PoolingMatrix &base_pooling_matrix, const vector<vector<uint>> &permutation_map){
+ inline PoolingMatrix getExtendedPoolingMatrix(const PoolingMatrix &base_pooling_matrix, const vector<vector<bool>> &signature_matrix){
     PoolingMatrix extended_pooling_matrix;
-    vector<vector<bool>> signature_matrix = getSignatureMatrix(permutation_map);
-    vector<vector<uint>> extended_pools_to_items;
+    uint signature_length = num_permutations_ * 2 * L;
+    extended_pooling_matrix.pools_to_items.resize(num_pools_ * signature_length);
+    extended_pooling_matrix.items_to_pools.resize(num_features_);
+    extended_pooling_matrix.num_features = num_features_;
+    extended_pooling_matrix.num_pools = num_pools_ * signature_length;
 
+    
+    
+    for( uint pool_id = 0; pool_id < base_pooling_matrix.pools_to_items.size(); pool_id++ ){
+        uint extended_pool_id = pool_id * signature_length;
+        
+        for(uint i = 0; i < signature_length; i++ ){
+            for(const uint &item_id : base_pooling_matrix.pools_to_items[pool_id]){
+                bool bit = signature_matrix[item_id][i];
+                if(bit){
+                    extended_pooling_matrix.pools_to_items[extended_pool_id + i].push_back(item_id);
+                    extended_pooling_matrix.items_to_pools[item_id].push_back(extended_pool_id + i);
+                }
 
-
+            }
+        }
+    }
+    
+    return extended_pooling_matrix;
 
  }
 
@@ -225,6 +244,7 @@ protected:
     uint num_pools_; // Total number of pools (m).
     uint signature_length_; // Length of the signatures.
     int debug_ = 0; // Debug level (0 for none, higher values for more verbose output)
+    uint num_permutations_ = 3; // The number of permuations used by Saffron.
 
 public:
     /**
@@ -234,10 +254,11 @@ public:
      * @param sparsity Expected sparsity level (k).
      * @param debug Debug level.
      */
-    Saffron(uint num_features, uint sparsity, int debug = 0) :
+    Saffron(uint num_features, uint sparsity, int debug = 0, uint num_permuations = 3) :
         num_features_(num_features),
         sparsity_(sparsity),
-        debug_(debug)
+        debug_(debug),
+        num_permuations_(num_permuations)
     {
         uint L = ceil(log2(num_features));
         signature_length_ = 3 * (2 * L + 1);
