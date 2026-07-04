@@ -74,7 +74,7 @@
  * @param permutation_map Contains the permuations for the item index.
  * @return vector<bool> The boolean signature.
  */
-inline vector<bool> getSignature( const vector<uint> &permutation_map) {
+ inline vector<bool> getSignature( const vector<uint>& permutation_map) {
     
     uint L = ceil(log2(num_features_)); // The L value in Saffron.
     uint num_permutations = permutation_map.size();
@@ -91,6 +91,38 @@ inline vector<bool> getSignature( const vector<uint> &permutation_map) {
     return signature;
 }
 
+/**
+ * @brief Small helper function that generate a 2D signature matrix which has the full signature for each item_id.
+ 
+ * @param permutation_map The permutation_map which has signature_numbers for the item_ids.
+ * @return vector<vector<bool>> signature_matrix[item_id] has full signature of item.
+ */
+
+ inline vector<vector<bool>> getSignatureMatrix(const vector<vector<uint>>& permutation_map) {
+    vector<vector<bool>> signature_matrix(num_features_);
+    for(uint item_id = 0; item_id < num_features_; item_id++){
+        signature_matrix[item_id] = getSignature(permutation_map[item_id]); 
+    }
+    return signature_matrix;
+ }
+
+
+/**
+ * @brief Generate the extended Pooling Matrix by row-wise replacement of item with it's complete signature.
+ * 
+ * @param base_pooling_matrix The pooling matrix for the test bundles i.e. the left regular graph for test bundles.
+ * @param permutation_map The permutation_map which has signature_numbers for the item_ids.
+ * @return PoolingMatrix which is the Extended Pooling Matrix.
+ */
+ inline PoolingMatrix getExtendedPoolingMatrix(const PoolingMatrix &base_pooling_matrix, const vector<vector<uint>> &permutation_map){
+    PoolingMatrix extended_pooling_matrix;
+    vector<vector<bool>> signature_matrix = getSignatureMatrix(permutation_map);
+    vector<vector<uint>> extended_pools_to_items;
+
+
+
+
+ }
 
 /**
  * @brief Decodes a single block of a signature.
