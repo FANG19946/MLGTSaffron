@@ -5,6 +5,14 @@
 #include "headers.hpp"
 #include "NovaMatrix.hpp"
 
+/**
+ * @brief The result vector has the test results for every test bundle. The idea is to create a vector of Test Bundles later to have a simpler debugging.
+*/
+
+struct TestBundle{
+    vector<bool> result;
+}
+
 
 /**
  * @brief Generates the permutations needed for ids.
@@ -142,25 +150,39 @@
     return extended_pooling_matrix;
 
  }
-//  4-7-26
 
 /**
- * @brief Decodes a single block of a signature.
- * 
- * @param measurement A slice of the measurement vector for one block.
- * @return optional<uint> The decoded item index, or nullopt if 0 or multi-pool.
+ * @brief Decodes a single block of a signature that's the binary number concatenated with its complement.
+ * IMPORTANT 
+ * Remember that for the first block the binary number = item_id + 1.
+ * @param block One block of the results vector it contains the binary signature number concatenated with its complement. 
+ * @return Singleton returns permutation number, Zeroton returns -1, Multiton returns -2.
  */
-inline optional<uint> decodeBlock(const vector<bool>& measurement) {
+inline int decodeBlock(const vector<bool>& block) {
     
-    uint num_bits = (measurement.size() - 1) / 2;
-    uint index = 0;
-    for (uint bit_idx = 0; bit_idx < num_bits; ++bit_idx) {
-        bool b1 = measurement[1 + bit_idx];
-        bool b2 = measurement[1 + num_bits + bit_idx];
-        if (b1 == b2) return nullopt; // Collision or empty
-        if (b1) index |= (1 << bit_idx);
+    uint num_bits = block.size();
+    int permutation_number = 0;
+    uint hamming_weight = 0;
+
+    for(bool &bit : block){
+        hamming_weight += bit;
     }
-    return index;
+    uint L = num_bits/2;
+    // For hamming weight is half the num_bits that means its a singleton.
+    if(hamming_weight == 0)
+        permutation_number = -1;
+    else if(hamming_weight == L){
+        for(uint i=0; i<L; i++){
+            if(block[i]){
+                permutation_number += (1u << (L - 1 - i));
+            }
+        }
+    }
+    else{
+        permutation_number=-2;
+    }
+    
+    return permutation_number;
 }
 
 
