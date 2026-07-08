@@ -156,6 +156,10 @@ struct TestBundle{
  * IMPORTANT 
  * Remember that for the first block the binary number = item_id + 1.
  * @param block One block of the results vector it contains the binary signature number concatenated with its complement. 
+ * Zeroton -> -1
+ * Singleton -> permutation_number
+ * Doubleton/ Multiton -> -2
+ *  
  * @return Singleton returns permutation number, Zeroton returns -1, Multiton returns -2.
  */
 inline int decodeBlock(const vector<bool>& block) {
@@ -187,68 +191,52 @@ inline int decodeBlock(const vector<bool>& block) {
 
 
 /**
- * @brief Decodes a signature from a measurement vector, supporting doubleton resolution.
+ * @brief Decodes a signature from a measurement vector.
  * 
- * @param measurement A boolean vector of measurement bits (6L).
- * @param signature_length Length of the signature.
- * @return vector<uint> List of identified item indices (0, 1, or 2 items).
+ * @param measurement A boolean vector of measurement bits (6L Generally).
+ * @param permutation_map The permutation_map which has signature_numbers for the item_ids.
+ * Zeroton -> -1
+ * Singleton -> item_id
+ * Doubleton/ Multiton -> -2
+ * Decoding Failure -> -3 ( Permutation verification failure )
+ * @return item_id for successful decoding and negative codes for failures.
  */
-inline vector<uint> decodeSignature(
-    const vector<bool>& measurement,
-    uint signature_length
+inline int decodeSignature(
+    const vector<bool>& measurement, const vector<vector<uint>> &permutation_map
+    
 ) {
-    uint block_len = signature_length / 3;
-    uint num_bits = (block_len - 1) / 2;
-    
-    // 1. Try singleton decoding from Block 1
-    vector<bool> block1(measurement.begin(), measurement.begin() + block_len);
-    optional<uint> s = decodeBlock(block1);
-    if (s.has_value()) {
-        uint val = s.value();
-        vector<bool> expected = getSignature(val, signature_length);
-        bool match = true;
-        for (uint i = 0; i < signature_length; ++i) {
-            if (expected[i] != measurement[i]) {
-                match = false;
-                break;
-            }
-        }
-        if (match) return { val };
-    }
-    
-    // 2. Try doubleton recovery if block 1 parity is 0
-    if (!block1[0]) {
-        uint S = 0;
-        bool non_zero = false;
-        for (uint i = 0; i < num_bits; ++i) {
-            if (block1[1 + i]) { S |= (1 << i); non_zero = true; }
-        }
-        if (!non_zero) return {}; // Truly empty
+    uint block_len = signature_length_ / num_permutations_;
+    uint item_id;
 
-        // Look for a singleton in other blocks
-        for (uint b = 1; b < 3; ++b) {
-            vector<bool> block_m(measurement.begin() + b * block_len, measurement.begin() + (b + 1) * block_len);
-            optional<uint> i1 = decodeBlock(block_m);
-            if (i1.has_value()) {
-                uint val1 = i1.value();
-                uint val2 = S ^ val1;
-                
-                // Verify doubleton
-                vector<bool> s1 = getSignature(val1, signature_length);
-                vector<bool> s2 = getSignature(val2, signature_length);
-                bool match = true;
-                for (uint i = 0; i < signature_length; ++i) {
-                    if ((s1[i] ^ s2[i]) != measurement[i]) {
-                        match = false;
-                        break;
-                    }
-                }
-                if (match) return { val1, val2 };
+    // Decoding First Block.
+    vector<bool> block(
+    measurement.begin(),
+    measurement.begin() + block_len
+    );
+
+    int decoded = decodeBlock(block);
+    // Zeroton or Multiton.
+    if(decoded < 0){
+        return decoded;
+    }
+    else {
+        // verify with other blocks
+        uint permutation_number = decoded;
+        item_id = permutation_number - 1;
+        
+        for(uint i = 1; i< num_permutations_; i++){
+            block = vector<bool>( measurement.begin() + i * block_len, measurement.begin() + (i+1) * block_len );
+            int next_permutation = decodeBlock(block);
+            if(next_permutation < 0){
+                return -3;
+            }
+            if(permutation_map[item_id][i] != next_permutation ){
+                return -3;
             }
         }
+        return item_id;
     }
-    
-    return {};
+
 }
 
 
