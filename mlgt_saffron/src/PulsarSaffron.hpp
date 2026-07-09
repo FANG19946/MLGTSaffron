@@ -239,6 +239,56 @@ inline int decodeSignature(
 
 }
 
+/**
+ * @brief Peel a Signature of an identified defective from a measurement.
+ * 
+ * @param measurement A boolean vector of measurement bits (6L Generally).
+ * @param signature_matrix vector<vector<bool>> signature_matrix[item_id] has full signature of item.
+ * @param defective_item_id item_id of the identified defective in the bundle.
+ * 
+ * Resolvable Doubleton -> item_id
+ * Decoding Failure -> -3 ( Permutation verification failure )
+ * @return vector<bool> result The peeled signature of the measurement vector.
+ */
+inline vector<bool> peelSignature(const vector<bool> &measurement, const vector<vector<bool>> &signature_matrix, uint defective_item_id){
+    
+    vector<bool> result(signature_length_);
+    vector<bool> &defective_signature = signature_matrix[defective_item_id];
+    for(uint i=0; i< num_permutations_; i++){
+        for(uint j=0; j< L_; j++){
+
+            uint bit_id = i*2*L+j;
+            uint bit_complement_id = bit_id + L_;
+
+            
+            // 1 OR Unknown != 0
+            assert(!(measurement[bit_id] == 0 && defective_signature[bit_id] == 1));
+            
+            if(measurement[bit_id] == 1){
+                if(defective_signature[bit_id] == 1){
+                    if(measurement[bit_complement_id] == 1){
+                        result[bit_id] = 0;
+                    }
+                    else{
+                        result[bit_id] = 1;
+                    }
+                }
+                else{
+                    result[bit_id] = 1;
+                }
+            }
+            else{
+                result[bit_id] = 0;
+            }
+
+            result[bit_complement_id] = !result[bit_id];
+
+        }
+    }
+    return result;
+}
+
+
 
 /**
  * @brief Base class for the Sparse All-Fast Fourier Transform (SAFFRON) recovery algorithm.
