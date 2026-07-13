@@ -263,7 +263,7 @@ inline vector<bool> peelSignature(const vector<bool> &measurement, const vector<
             
             // 1 OR Unknown != 0
             assert(!(measurement[bit_id] == 0 && defective_signature[bit_id] == 1));
-            
+
             if(measurement[bit_id] == 1){
                 if(defective_signature[bit_id] == 1){
                     if(measurement[bit_complement_id] == 1){
@@ -287,6 +287,183 @@ inline vector<bool> peelSignature(const vector<bool> &measurement, const vector<
     }
     return result;
 }
+//Small helper function to remove an item from unresolved_pools
+void remove_pool(vector<uint> &unresolved_pools, vector<uint> &position, uint pool_id){
+    assert(position[pool_id] < unresolved_pools.size());
+    assert(unresolved_pools[position[pool_id]] == pool_id);
+
+    uint idx = position[pool_id];
+    uint moved_pool = unresolved_pools.back();
+    position[moved_pool] = idx;
+    std::swap(unresolved_pools[idx], unresolved_pools.back());
+    unresolved_pools.pop_back();
+    
+}
+
+
+
+/**
+ * @brief Executes the peeling algorithm to recover identified items from residuals.
+ * 
+ * @param residuals A 2D vector of booleans (num_pools x signature_bits).
+ * @param signature_matrix vector<vector<bool>> signature_matrix[item_id] has full signature of item.
+ * @param identified_defectives <set> of defectives from the tests.
+ * @param base_pooling_matrix The pooling matrix for the test bundles i.e. the left regular graph for test bundles.
+ * @param permutation_map Contains the permuations for the item index.
+ * 
+ * @param debug Debug level.
+ * @return set<uint> A set of identified item indices.
+ */
+ inline set<uint> peelingAlgorithm(vector<vector<bool>> residuals, vector<vector<bool>> &signature_matrix, set<uint> identified_defectives, PoolingMatrix &base_pooling_matrix, vector<vector<uint>> &permutation_map, int debug = 0) {
+    
+    // unresolved_pools[position[i]] List of unresolved pools. Position required to maintain inverse position map due to swap and pop.
+    vector<uint> unresolved_pools(num_pools_);
+    vector<uint> position(num_pools_);
+    vector<bool> status(num_pools_);
+    for(uint i = 0; i<num_pools_; i++){
+        unresolved_pools[i]=i;
+        position[i]=i; 
+        status[i] = false;
+    }
+
+    set<uint> defective_items;
+    
+
+    while(!identified_defectives.empty() && !unresolved_pools.empty()){
+
+        uint item_id = *identified_defectives.begin();
+        identified_defectives.erase(identified_defectives.begin());
+
+        // Add defective item to the set.
+        defective_items.insert(item_id);
+
+        for(uint &pool_id : base_pooling_matrix.items_to_pools[item_id]){
+
+            // Skip if pool has already been resolved
+            if(status[pool_id]){
+                continue;
+            }
+            status[pool_id] = true;
+
+            // checking for singleton
+            int code = decodeSignature(residuals[pool_id], permutation_map);
+            if(code >= 0 ){
+                // This pool was singleton and is now resolved so remove it from processing list
+                remove_pool(unresolved_pools, position, pool_id);
+            }
+            // Doubleton/ Multiton Peel now and see what is remaining. 
+            else{
+                vector<bool> result = peelSignature(residuals[pool_id], signature_matrix, item_id);
+                code = decodeSignature(result, permutation_map);
+                // Now the code must have either resolved the doubleton or hold the verification failure code -3.
+                if(code >= 0 ){
+                    // Check if this item has already been found
+                    if(defective_items.find(code) != defective_items.end()){
+
+                    }
+                    // This item has not been found yet
+                    else{
+                        // Add it to the found defectives
+                        defective_items.insert(code);
+                        // Check if it is already in set for processing 
+                        if(identified_defectives.find(code) != identified_defectives.end()){
+                            
+                        }
+                        else{
+                            // Add it since its not there
+                            identified_defectives.insert(code);
+                        }
+
+                        
+                    }
+
+                    
+                    // This pool was doubleton and is now resolved so remove it from processing list
+                    remove_pool(unresolved_pools, position, pool_id);
+
+                }
+                // Verificatiion has failed code must be -3.
+                else{
+                    assert(code == -3);
+                    // This pool was has failed verification so remove it from processing list
+                    remove_pool(unresolved_pools, position, pool_id);
+
+                }
+
+            }
+
+        }
+    }
+
+
+    // If pools are left and identified defectives is empty
+    while(unresolved_pools.size()!=0){
+        for(uint i = 0; i < unresolved_pools.size(); i++ ){
+            
+            uint pool_id = unresolved_pools[i];
+            int code = decodeSignature(residuals[pool_id], permutation_map);
+            if(code >= 0 ){
+                if(identified_defectives.find(code) == identified_defectives.end() && defective_items.find(code) == defective_items.end()){
+                    identified_defectives.insert(code);
+                }
+                
+            }
+            // Anything other than Doubleton/ Multiton can be resolved and we remove it else we must keep it.
+            if(code != -2){
+                i--;
+                status[pool_id] = true;
+                remove_pool(unresolved_pools, position, pool_id);
+            }
+            while(!identified_defectives.empty()){
+
+                uint item_id = *identified_defectives.begin();
+                identified_defectives.erase(identified_defectives.begin());
+                defective_items.insert(item_id);
+                for(uint pid : base_pooling_matrix.items_to_pools[item_id]){
+                    if(status[pid])
+                        continue;
+                    status[pid] = true;
+                    
+                    vector<bool> result = peelSignature(residuals[pid], signature_matrix, item_id);
+                    code = decodeSignature(result, permutation_map);
+                    if(code >= 0 ){
+                        if(identified_defectives.find(code) == identified_defectives.end() && defective_items.find(code) == defective_items.end()){
+                            identified_defectives.insert(code);
+                        }
+                    }
+                    remove_pool(unresolved_pools, position, pid);
+
+                }
+            }
+            
+            
+        }
+        // To avoid looping infinitely when the remaining pools cannot be resolved, identified_defectives is empty and remaining pools all are Doubletons/ Multitons or Unverifiable
+        bool unresolvable = true;
+        if(identified_defectives.empty()){
+            for(uint pool_id : unresolved_pools ){
+                int code = decodeSignature(residuals[pool_id], permutation_map);
+                if(code != -2 && code != -3){
+                    unresolvable = false;
+                }
+            }
+        }
+        if(unresolvable)
+            break;
+        
+    }
+    // If set is not empty and pools are resolved
+    while(!identified_defectives.empty()){
+        uint item_id = *identified_defectives.begin();
+        identified_defectives.erase(identified_defectives.begin());
+        defective_items.insert(item_id);
+    }
+
+    return defective_items;
+ }
+
+
+
 
 
 
