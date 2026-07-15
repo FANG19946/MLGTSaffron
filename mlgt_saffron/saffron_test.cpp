@@ -16,7 +16,7 @@ using uint = unsigned int;
 // Replace these with the same values from your project.
 // -----------------------------------------------------------------------------
 
-constexpr uint C_epsilon = 6;
+constexpr uint C_epsilon = 3;
 constexpr uint POOLS_PER_ITEM = 3;
 
 // -----------------------------------------------------------------------------
