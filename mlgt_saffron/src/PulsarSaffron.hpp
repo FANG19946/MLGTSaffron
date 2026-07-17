@@ -15,7 +15,7 @@
  * algorithm used to recover sparse components (singletons and doubletons) from 
  * XOR-sum binary residuals across multiple pools.
  */
-class Saffron {
+class PulsarSaffron {
 protected:
     PoolingMatrix pools_; // The pooling matrix defining the item-to-pool and pool-to-item mappings.
     uint num_features_; // Total number of features/items (n).
@@ -36,7 +36,7 @@ public:
      * @param sparsity Expected sparsity level (k).
      * @param debug Debug level.
      */
-    Saffron(uint num_features, uint sparsity, int debug = 0, uint num_permutations = 3) :
+    PulsarSaffron(uint num_features, uint sparsity, int debug = 0, uint num_permutations = 3) :
         num_features_(num_features),
         sparsity_(sparsity),
         debug_(debug),
@@ -81,7 +81,7 @@ public:
      */
     inline uint signature_length() const { return signature_length_; }
 
-    ~Saffron() = default;
+    ~PulsarSaffron() = default;
 
 
         
@@ -247,7 +247,7 @@ public:
         return defective_items;
     }
 
-private:
+protected:
 
     /**
      * @brief Generates the permutations needed for ids.
