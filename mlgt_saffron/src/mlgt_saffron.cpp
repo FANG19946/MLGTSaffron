@@ -11,6 +11,9 @@
 #include "BloomHashIndex.hpp"
 #include "BloomGroupTestingSaffron.hpp"
 #include "OrionIndex.hpp"
+#include "NovaMatrix.hpp"
+#include "PulsarSaffron.hpp"
+#include "OdysseyMLGT.hpp"
 
 namespace py = pybind11;
 
@@ -201,6 +204,47 @@ PYBIND11_MODULE(mlgt_saffron, m) {
          &OrionIndex::build,
          py::arg("all_hashes"),
          py::arg("item_indices"));
+         
+    
+     // PulsarSaffron
+    py::class_<PulsarSaffron>(m, "PulsarSaffron",
+    "Core Pulsar SAFFRON sparse recovery implementation.")
+    .def(py::init<uint, uint, int>(),
+         py::arg("num_features"),
+         py::arg("sparsity"),
+         py::arg("debug") = 0)
+    .def("num_features", &PulsarSaffron::num_features)
+    .def("sparsity", &PulsarSaffron::sparsity)
+    .def("num_pools", &PulsarSaffron::num_pools)
+    .def("signature_length", &PulsarSaffron::signature_length)
+    .def("peelingAlgorithm", &PulsarSaffron::peelingAlgorithm,
+         py::arg("residuals"),
+         py::arg("identified_defectives"),
+         py::arg("debug") = 0);
+
+
+     // OdysseyMLGT
+     py::class_<OdysseyMLGT, PulsarSaffron>(
+     m,
+    "OdysseyMLGT",
+    "Odyssey MLGT nearest neighbor search implementation.")
+    .def(py::init<
+            py::array_t<float>,
+            uint,
+            uint,
+            uint,
+            uint,
+            int,
+            bool>(),
+         py::arg("data_points"),
+         py::arg("num_neighbors") = 100,
+         py::arg("num_hashes") = BLOOM_NUM_HASHES,
+         py::arg("hash_bits") = BLOOM_HASH_BITS,
+         py::arg("threshold") = BLOOM_THRESHOLD,
+         py::arg("debug") = 0,
+         py::arg("normalize") = true)
+    .def("search", &OdysseyMLGT::search, py::arg("query"))
+    .def("__call__", &OdysseyMLGT::operator(), py::arg("query"));
     
 }
 
