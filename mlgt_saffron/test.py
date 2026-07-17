@@ -14,7 +14,7 @@ CUR_DIR: str = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(CUR_DIR)
 DATASETS = ["imagenet", "imdb_wiki", "insta_1m", "mirflickr"]
 
-from mlgt_saffron import SaffronIndex, MLGTSaffron, BloomGroupTestingSaffron, MLGTGlobal
+from mlgt_saffron import  MLGTSaffron, BloomGroupTestingSaffron, MLGTGlobal, OdysseyMLGT
 
 # Global Constant
 CURRENT_DATASET = None
@@ -128,6 +128,12 @@ def test_saffron(
             num_hashes=num_hashes, hash_bits=hash_bits, threshold=threshold,
             debug=verbose
         ) # type: ignore
+    elif algo_name == "odyssey":
+        saffron_index = OdysseyMLGT(
+        dataset, num_neighbors, 
+        num_hashes=num_hashes, hash_bits=hash_bits, threshold=threshold,
+        debug=verbose
+    ) # type: ignore
     else:
         raise ValueError(f"Unknown algorithm: {algo_name}")
     
@@ -266,8 +272,8 @@ if __name__ == "__main__":
         "-a",
         type=str,
         nargs="+",
-        choices=["mlgt", "bloom", "global"],
-        default=["mlgt", "global"],
+        choices=["mlgt", "bloom", "global","odyssey"],
+        default=["odyssey", "global"],
         help="The algorithm(s) to test [mlgt, bloom, global(default)]"
     )
     parser.add_argument(
