@@ -6,7 +6,7 @@
 /**
  * @brief Represents the mapping between items and pools for the SAFFRON algorithm.
  */
-struct PoolingMatrix {
+struct NovaMatrix {
     vector<vector<uint>> pools_to_items; ///< List of vectors, where each vector contains the item indices in that pool.
     vector<vector<uint>> items_to_pools; ///< List of vectors, where each vector contains the pool indices the item belongs to.
     uint num_features; ///< Total number of features/items (n).
@@ -22,14 +22,14 @@ struct PoolingMatrix {
  * @param num_features Total number of features (n).
  * @param sparsity Expected sparsity level (k).
  * @param debug Debug verbosity level.
- * @return PoolingMatrix The mapping between items and pools.
+ * @return NovaMatrix The mapping between items and pools.
  */
-inline PoolingMatrix computePools(uint num_features, uint sparsity, int debug = 0) {
+inline NovaMatrix computeNovaPools(uint num_features, uint sparsity, int debug = 0) {
     uint num_pools = sparsity * C_epsilon;
     // left degree d
     uint pools_per_item = POOLS_PER_ITEM;
     
-    PoolingMatrix pooling_matrix;
+    NovaMatrix pooling_matrix;
     pooling_matrix.num_features = num_features;
     pooling_matrix.num_pools = num_pools;
     pooling_matrix.pools_to_items.resize(num_pools);

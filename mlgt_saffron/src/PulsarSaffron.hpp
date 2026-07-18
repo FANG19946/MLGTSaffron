@@ -17,7 +17,7 @@
  */
 class PulsarSaffron {
 protected:
-    PoolingMatrix pools_; // The pooling matrix defining the item-to-pool and pool-to-item mappings.
+    NovaMatrix pools_; // The pooling matrix defining the item-to-pool and pool-to-item mappings.
     uint num_features_; // Total number of features/items (n).
     uint sparsity_; // Expected sparsity level (k).
     uint num_pools_; // Total number of pools (m).
@@ -26,7 +26,7 @@ protected:
     uint num_permutations_ = 3; // The number of permuations used by Saffron.
     vector<vector<uint>> permutation_map_; // The permutation_map which has signature_numbers for the item_ids.
     vector<vector<bool>> signature_matrix_;  // signature_matrix[item_id] has full signature of item.
-    PoolingMatrix extended_pooling_matrix_; // Extended Pooling Matrix which expands the signatures as individual pools.
+    NovaMatrix extended_pooling_matrix_; // Extended Pooling Matrix which expands the signatures as individual pools.
     uint L_; // The number of bits required for a block generally log(num_features). (NOTE: Check for a BUG that might require log(num_features + 1)).
 public:
     /**
@@ -44,11 +44,11 @@ public:
     {
         L_ = ceil(log2(num_features));
         signature_length_ = num_permutations_ * (2 * L_);
-        pools_ = computePools(num_features, sparsity, debug);
+        pools_ = computeNovaPools(num_features, sparsity, debug);
         num_pools_ = pools_.num_pools;
         permutation_map_ = getPermutationMap(num_permutations_);
         signature_matrix_ = getSignatureMatrix(permutation_map_);
-        extended_pooling_matrix_ = getExtendedPoolingMatrix(pools_, signature_matrix_);
+        extended_pooling_matrix_ = getExtendedNovaMatrix(pools_, signature_matrix_);
     }
 
     /**
@@ -100,7 +100,7 @@ public:
     inline set<uint> peelingAlgorithm(vector<vector<bool>> residuals, set<uint> identified_defectives, int debug = 0) {
         
         // Alias for pools_
-        const PoolingMatrix& base_pooling_matrix = pools_;
+        const NovaMatrix& base_pooling_matrix = pools_;
         // unresolved_pools[position[i]] List of unresolved pools. Position required to maintain inverse position map due to swap and pop.
         vector<uint> unresolved_pools(num_pools_);
         vector<uint> position(num_pools_);
@@ -122,7 +122,7 @@ public:
             // Add defective item to the set.
             defective_items.insert(item_id);
 
-            for(uint &pool_id : base_pooling_matrix.items_to_pools[item_id]){
+            for(const uint &pool_id : base_pooling_matrix.items_to_pools[item_id]){
 
                 // Skip if pool has already been resolved
                 if(status[pool_id]){
@@ -169,7 +169,7 @@ public:
                     }
                     // Verificatiion has failed code must be -3.
                     else{
-                        assert(code == -3);
+                        // assert(code == -3);
                         // This pool was has failed verification so remove it from processing list
                         remove_pool(unresolved_pools, position, pool_id);
 
@@ -352,11 +352,11 @@ protected:
      * 
      * @param base_pooling_matrix The pooling matrix for the test bundles i.e. the left regular graph for test bundles.
      * @param signature_matrix vector<vector<bool>> signature_matrix[item_id] has full signature of item.
-     * @return PoolingMatrix which is the Extended Pooling Matrix.
+     * @return NovaMatrix which is the Extended Pooling Matrix.
      */
-    inline PoolingMatrix getExtendedPoolingMatrix(const PoolingMatrix &base_pooling_matrix, const vector<vector<bool>> &signature_matrix){
-        PoolingMatrix extended_pooling_matrix;
-        uint signature_length = num_permutations_ * 2 * L;
+    inline NovaMatrix getExtendedNovaMatrix(const NovaMatrix &base_pooling_matrix, const vector<vector<bool>> &signature_matrix){
+        NovaMatrix extended_pooling_matrix;
+        uint signature_length = num_permutations_ * 2 * L_;
         extended_pooling_matrix.pools_to_items.resize(num_pools_ * signature_length);
         extended_pooling_matrix.items_to_pools.resize(num_features_);
         extended_pooling_matrix.num_features = num_features_;
@@ -400,7 +400,7 @@ protected:
         int permutation_number = 0;
         uint hamming_weight = 0;
 
-        for(bool &bit : block){
+        for(const bool &bit : block){
             hamming_weight += bit;
         }
         uint L = num_bits/2;
@@ -412,6 +412,10 @@ protected:
                 if(block[i]){
                     permutation_number += (1u << (L - 1 - i));
                 }
+            }
+            // Protection from Segmentation Faults when SAFFRON decodes a wrong singleton (Probability of 1/n^2 with 3 permutations)
+            if(permutation_number >= static_cast<int>(num_features_ + 1)){
+                permutation_number = -2;
             }
         }
         else{
@@ -462,7 +466,7 @@ protected:
                 if(next_permutation < 0){
                     return -3;
                 }
-                if(permutation_map[item_id][i] != next_permutation ){
+                if(permutation_map[item_id][i] != static_cast<uint>(next_permutation) ){
                     return -3;
                 }
             }
@@ -486,11 +490,11 @@ protected:
     inline vector<bool> peelSignature(const vector<bool> &measurement, const vector<vector<bool>> &signature_matrix, uint defective_item_id){
         
         vector<bool> result(signature_length_);
-        vector<bool> &defective_signature = signature_matrix[defective_item_id];
+        const vector<bool> &defective_signature = signature_matrix[defective_item_id];
         for(uint i=0; i< num_permutations_; i++){
             for(uint j=0; j< L_; j++){
 
-                uint bit_id = i*2*L+j;
+                uint bit_id = i * 2 * L_ + j;
                 uint bit_complement_id = bit_id + L_;
 
                 

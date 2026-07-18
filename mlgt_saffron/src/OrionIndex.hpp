@@ -73,7 +73,7 @@ public:
         hash_buckets_.clear();
         hash_buckets_.resize(hash_range_);
         
-        for(uint pool_id = 0; pool_id < num_pools; pool_id++ ){
+        for(uint pool_id = 0; pool_id < num_pools_; pool_id++ ){
             for(uint item : item_indices[pool_id]){
                 for(uint h = 0; h < num_hashes_; h++){
                     uint h_val = all_hashes[item][h];

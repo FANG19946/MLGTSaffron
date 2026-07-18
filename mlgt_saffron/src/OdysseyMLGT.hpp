@@ -55,13 +55,14 @@ public:
 
         // DELETE this block its unnecessary
         // Pre-calculate signatures for fast search
-        item_signatures_.resize(num_features_);
-        #pragma omp parallel for
-        for (int i = 0; i < (int)num_features_; ++i) {
-            item_signatures_[i] = getSignature(i, signature_length_);
-        }
+        // item_signatures_.resize(num_features_);
+        // #pragma omp parallel for
+        // for (int i = 0; i < (int)num_features_; ++i) {
+        //     item_signatures_[i] = getSignature(i, signature_length_);
+        // }
 
         // Convert to Eigen Matrix
+        cout<<"Convert to Eigen Matrix"<<endl;
         auto r = data_points_arr.unchecked<2>();
         data_eigen_.resize(r.shape(0), r.shape(1));
         #pragma omp parallel for
@@ -79,6 +80,7 @@ public:
         }
 
         // Pre-calculate hashes for all items
+        cout<<"Pre-calculate hashes for all items"<<endl;
         vector<vector<uint>> all_hashes(num_features_);
         #pragma omp parallel for
         for (int item_idx = 0; item_idx < (int)num_features_; ++item_idx) {
@@ -87,10 +89,12 @@ public:
         }
 
         // Build heliosIndex_
+        cout<<"Building OrionIndex"<<endl;
         uint hash_range = 1u << hash_bits_;
         heliosIndex_ = OrionIndex(hash_range, num_hashes_, threshold_);
         // Index uses the extended pooling matrix
         heliosIndex_.build(all_hashes, extended_pooling_matrix_.pools_to_items);
+        cout<<"OrionIndex Built"<<endl;
 
 
         // Build one index PER POOL
@@ -145,8 +149,8 @@ protected:
      * @param query_vec Normalized query vector (Eigen).
      * @return vector<vector<bool>> The num_pools x signature_bits residual matrix, set<uint> identified_defectives contains the set of items that are defectives, double hashing_time Time taken to hash th query vector.
      */
-    // Changed getResiduals to return pair {residuals, identified_defectives, hashing_time}
-    inline std::tuple<vector<vector<bool>>, set<uint>,  double> getResiduals(const Eigen::VectorXf& query_vec) const {
+    // Changed getResiduals to return tuple {residuals, identified_defectives, hashing_time}
+    inline std::tuple<vector<vector<bool>>, set<uint>,  double, double> getResiduals(const Eigen::VectorXf& query_vec) const {
 
         // Hashing Time
         auto t_hash_start = std::chrono::high_resolution_clock::now();
@@ -159,7 +163,8 @@ protected:
         set<uint> identified_defectives;
 
         // Check if parallel threading works
-        // #pragma omp parallel for
+        auto t_test_evaluation_start = std::chrono::high_resolution_clock::now();
+        #pragma omp parallel for
         for(uint pool_id = 0; pool_id < num_pools_; pool_id++){
             uint extended_base = pool_id * signature_length_;
             for(uint j = 0; j < signature_length_; j++){
@@ -171,6 +176,10 @@ protected:
                 }
             }
         }
+        auto t_test_evaluation_end = std::chrono::high_resolution_clock::now();
+        double test_evaluation_time = std::chrono::duration<double>(t_test_evaluation_end - t_test_evaluation_start).count();
+
+
 
 
         // #pragma omp parallel for
@@ -185,7 +194,7 @@ protected:
         //         }
         //     }
         // }
-        return {residuals, identified_defectives, hashing_time};
+        return {residuals, identified_defectives, hashing_time, test_evaluation_time};
     }
 
 public:
@@ -196,7 +205,7 @@ public:
      * @return vector<uint> Top K item indices.
      */
     // Changed search to return (topK, hashing_time, decoding_time)
-    inline std::tuple<std::vector<uint>, double, double> search(pybind11::array_t<float> query_arr) {
+    inline std::tuple<std::vector<uint>, double, double, double> search(pybind11::array_t<float> query_arr) {
         Eigen::Map<const Eigen::VectorXf> q_raw(query_arr.data(), dimension_);
         Eigen::VectorXf query = q_raw;
         if (normalize_) {
@@ -205,7 +214,7 @@ public:
         }
 
         // Updated return of getResiduals()
-        auto [residuals, identified_defectives, hashing_time] = getResiduals(query);
+        auto [residuals, identified_defectives, hashing_time, test_evaluation_time] = getResiduals(query);
         
         // Decoding Time
         auto t_decode_start = std::chrono::high_resolution_clock::now();
@@ -214,7 +223,7 @@ public:
         double decoding_time = std::chrono::duration<double>(t_decode_end - t_decode_start).count();
         
 
-        return {getTopKEigen(query, data_eigen_, identified, sparsity_), hashing_time, decoding_time};
+        return {getTopKEigen(query, data_eigen_, identified, sparsity_), hashing_time, decoding_time, test_evaluation_time };
     }
 
     /**
