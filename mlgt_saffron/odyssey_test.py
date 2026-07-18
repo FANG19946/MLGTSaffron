@@ -14,7 +14,7 @@ CUR_DIR: str = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(CUR_DIR)
 DATASETS = ["imagenet", "imdb_wiki", "insta_1m", "mirflickr"]
 
-from mlgt_saffron import SaffronIndex, MLGTSaffron, BloomGroupTestingSaffron, MLGTGlobal
+from mlgt_saffron import  MLGTSaffron, BloomGroupTestingSaffron, MLGTGlobal, OdysseyMLGT
 
 # Global Constant
 CURRENT_DATASET = None
@@ -90,6 +90,7 @@ def test_saffron(
         threshold: int = 20,
         verbose: int = 0,
 ) -> Tuple[float, float, float, float, float, float, float]:
+    #region description
     """
     Test the Saffron implementation on a given dataset and query set.
 
@@ -109,6 +110,8 @@ def test_saffron(
     - Average precision per query
     - Average recall per query
     """
+    # endregion
+    
     idx_start = time.time()
     if algo_name == "mlgt":
         saffron_index = MLGTSaffron(
@@ -128,19 +131,29 @@ def test_saffron(
             num_hashes=num_hashes, hash_bits=hash_bits, threshold=threshold,
             debug=verbose
         ) # type: ignore
+    elif algo_name == "odyssey":
+        saffron_index = OdysseyMLGT(
+        dataset, num_neighbors, 
+        num_hashes=num_hashes, hash_bits=hash_bits, threshold=threshold,
+        debug=verbose
+    ) # type: ignore
     else:
         raise ValueError(f"Unknown algorithm: {algo_name}")
     
+    # region timer initializations
     idx_time: float = time.time() - idx_start
     total_saffron_time: float = 0.0
     total_naive_time: float = 0.0
     total_precision: float = 0.0
     total_recall: float = 0.0
+    total_test_evaluation_time: float = 0.0
     num_queries: int = query_set.shape[0]
     # List of Saffron and Search times
     saffron_times: List[float] = []
     hash_times: List[float] = []
     decode_times: List[float] = []
+    test_evaluation_times: List[float] = []
+    # endregion
     
 
     # Add Hash and Decode Times
@@ -158,11 +171,12 @@ def test_saffron(
 
         # Had to Add this to recieve hash and decode time of MLGTSaffron because its not supported for other methods
         if isinstance(result, tuple):
-            retrieved_indices, hashing_time, decoding_time = result
+            retrieved_indices, hashing_time, decoding_time, test_evaluation_time = result
         else:
             retrieved_indices = result
             hashing_time = 0.0
             decoding_time = 0.0
+            total_test_evaluation_time = 0.0
 
 
 
@@ -171,6 +185,8 @@ def test_saffron(
         saffron_times.append(saffron_time)
         hash_times.append(hashing_time)
         decode_times.append(decoding_time)
+        test_evaluation_times.append(test_evaluation_time)
+
 
         
         # Naive search
@@ -205,6 +221,8 @@ def test_saffron(
         # Total Hash and Decode Times
         total_hash_time += hashing_time
         total_decode_time += decoding_time
+        total_test_evaluation_time += test_evaluation_time
+
     
     avg_saffron_time: float = total_saffron_time / num_queries
     avg_naive_time: float = total_naive_time / num_queries
@@ -214,11 +232,13 @@ def test_saffron(
     # Total Hash and Decode Times
     avg_hash_time: float = total_hash_time / num_queries
     avg_decode_time: float = total_decode_time / num_queries
+    avg_test_evaluation_time: float = total_test_evaluation_time / num_queries
+    print()
     # Plot Histogram 
     # plot_saffron_search_times(saffron_times, CURRENT_DATASET, ALGO_NAME)
     # Save CSV
     save_saffron_search_times_csv( saffron_times, hash_times, decode_times, CURRENT_DATASET, ALGO_NAME)
-    return idx_time, avg_saffron_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_decode_time
+    return idx_time, avg_saffron_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_decode_time, avg_test_evaluation_time
 
 
 
@@ -266,9 +286,9 @@ if __name__ == "__main__":
         "-a",
         type=str,
         nargs="+",
-        choices=["mlgt", "bloom", "global"],
-        default=["mlgt", "global"],
-        help="The algorithm(s) to test [mlgt, bloom, global(default)]"
+        choices=["mlgt", "bloom", "global","odyssey"],
+        default=["odyssey"],
+        help="The algorithm(s) to test [mlgt, bloom, global, odyssey(default)]"
     )
     parser.add_argument(
         "--num-hashes",
@@ -328,7 +348,7 @@ if __name__ == "__main__":
                 print(f"\n>>> Running: Dataset={dname}, Algo={algo}, k={args.num_neighbors}, hashes={nh}, bits={hb}, threshold={th}")
                 
 
-                idx_time, avg_saffron_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_decode_time = test_saffron(
+                idx_time, avg_saffron_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_decode_time, avg_test_evaluation_time = test_saffron(
                     full_dataset, 
                     full_query_set, 
                     args.num_neighbors,
@@ -347,3 +367,6 @@ if __name__ == "__main__":
                 print(f"Avg Recall:         {avg_recall:.4f}")
                 print(f"Avg Hash Time:     {avg_hash_time:.6f} seconds")
                 print(f"Avg Decode Time:   {avg_decode_time:.6f} seconds")
+                print(f"Avg Test Evaluation Time:   {avg_test_evaluation_time:.6f} seconds")
+
+
