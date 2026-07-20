@@ -57,3 +57,7 @@ data
 # plots and csv
 plots
 results
+
+# results logs
+results.txt
+odyssey_results.txt

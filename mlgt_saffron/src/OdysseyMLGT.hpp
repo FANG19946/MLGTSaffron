@@ -53,13 +53,6 @@ public:
         normalize_(normalize)
     {
 
-        // DELETE this block its unnecessary
-        // Pre-calculate signatures for fast search
-        // item_signatures_.resize(num_features_);
-        // #pragma omp parallel for
-        // for (int i = 0; i < (int)num_features_; ++i) {
-        //     item_signatures_[i] = getSignature(i, signature_length_);
-        // }
 
         // Convert to Eigen Matrix
         cout<<"Convert to Eigen Matrix"<<endl;
@@ -84,7 +77,6 @@ public:
         vector<vector<uint>> all_hashes(num_features_);
         #pragma omp parallel for
         for (int item_idx = 0; item_idx < (int)num_features_; ++item_idx) {
-            // 15-7-26
             all_hashes[item_idx] = shared_hasher_(data_eigen_.row(item_idx));
         }
 
@@ -97,30 +89,6 @@ public:
         cout<<"OrionIndex Built"<<endl;
 
 
-        // Build one index PER POOL
-        // pool_indices_.resize(num_pools_);
-        // #pragma omp parallel for
-        // for (int p = 0; p < (int)num_pools_; ++p) {
-        //     pool_indices_[p] = GlobalInvertedIndex(num_hashes_, threshold_);
-            
-        //     vector<vector<uint>> pool_hashes;
-        //     pool_hashes.reserve(pools_.pools_to_items[p].size());
-        //     for (uint global_idx : pools_.pools_to_items[p]) {
-        //         pool_hashes.push_back(all_hashes[global_idx]);
-        //     }
-        //     pool_indices_[p].build(pool_hashes, pools_.pools_to_items[p]);
-        // }
-
-        // Logging memory of All Poolwise Indexes created
-        if (debug_ > 0) {
-            // size_t GI_memory=0;
-            // for (int p = 0; p < (int)num_pools_; ++p) {
-                
-            //     GI_memory+=pool_indices_[p].memoryUsage();
-            // }
-            // double gb = GI_memory / (1024.0 * 1024.0 * 1024.0);
-            // cout<<"Total Memory used in Poolwise Global Inverted Index  "<<gb<<"GB \n";
-        }
 
         // Adding number of tests logging
         total_tests_ = num_pools_ * signature_length_;
@@ -180,20 +148,6 @@ protected:
         double test_evaluation_time = std::chrono::duration<double>(t_test_evaluation_end - t_test_evaluation_start).count();
 
 
-
-
-        // #pragma omp parallel for
-        // for (int p = 0; p < (int)num_pools_; ++p) {
-        //     vector<uint> matched_items = pool_indices_[p].get_matches(query_hashes);
-        //     for (uint global_item_idx : matched_items) {
-        //         const vector<bool>& sig = item_signatures_[global_item_idx];
-        //         for (uint b = 0; b < signature_length_; ++b) {
-        //             if (sig[b]) {
-        //                 residuals[p][b] = !residuals[p][b]; // XOR modulo 2
-        //             }
-        //         }
-        //     }
-        // }
         return {residuals, identified_defectives, hashing_time, test_evaluation_time};
     }
 

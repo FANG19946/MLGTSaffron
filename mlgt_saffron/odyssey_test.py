@@ -56,6 +56,7 @@ def save_saffron_search_times_csv(
     saffron_times: List[float],
     hash_times: List[float],
     decode_times: List[float],
+    test_evaluation_times: List[float],
     dataset_name: str,
     algo_name: str,
 ):
@@ -70,10 +71,10 @@ def save_saffron_search_times_csv(
 
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Query", "Saffron Time", "Hash Time", "Decode Time"])
+        writer.writerow(["Query", "Saffron Time", "Hash Time", "Decode Time", "Test Evaluation Time"])
 
-        for i, (s, h, d) in enumerate(zip(saffron_times, hash_times, decode_times), start=1):
-            writer.writerow([i, s, h, d])
+        for i, (s, h, d, t) in enumerate(zip(saffron_times, hash_times, decode_times, test_evaluation_times), start=1):
+            writer.writerow([i, s, h, d, t])
 
     print(f"Saved CSV to {filename}")
 
@@ -233,11 +234,10 @@ def test_saffron(
     avg_hash_time: float = total_hash_time / num_queries
     avg_decode_time: float = total_decode_time / num_queries
     avg_test_evaluation_time: float = total_test_evaluation_time / num_queries
-    print()
     # Plot Histogram 
     # plot_saffron_search_times(saffron_times, CURRENT_DATASET, ALGO_NAME)
     # Save CSV
-    save_saffron_search_times_csv( saffron_times, hash_times, decode_times, CURRENT_DATASET, ALGO_NAME)
+    save_saffron_search_times_csv( saffron_times, hash_times, decode_times, test_evaluation_times, CURRENT_DATASET, ALGO_NAME)
     return idx_time, avg_saffron_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_decode_time, avg_test_evaluation_time
 
 
@@ -359,14 +359,31 @@ if __name__ == "__main__":
                     args.verbose
                 )
 
-                print(f"--- Results for {algo.upper()} on {dname.upper()} ---")
-                print(f"Indexing Time: {idx_time:.6f} seconds")
-                print(f"Avg Saffron Search: {avg_saffron_time:.6f} seconds")
-                print(f"Avg Naive Search:   {avg_naive_time:.6f} seconds")
-                print(f"Avg Precision:      {avg_precision:.4f}")
-                print(f"Avg Recall:         {avg_recall:.4f}")
-                print(f"Avg Hash Time:     {avg_hash_time:.6f} seconds")
-                print(f"Avg Decode Time:   {avg_decode_time:.6f} seconds")
-                print(f"Avg Test Evaluation Time:   {avg_test_evaluation_time:.6f} seconds")
+                # print(f"--- Results for {algo.upper()} on {dname.upper()} ---")
+                # print(f"Indexing Time: {idx_time:.6f} seconds")
+                # print(f"Avg Saffron Search: {avg_saffron_time:.6f} seconds")
+                # print(f"Avg Naive Search:   {avg_naive_time:.6f} seconds")
+                # print(f"Avg Precision:      {avg_precision:.4f}")
+                # print(f"Avg Recall:         {avg_recall:.4f}")
+                # print(f"Avg Hash Time:     {avg_hash_time:.6f} seconds")
+                # print(f"Avg Decode Time:   {avg_decode_time:.6f} seconds")
+                # print(f"Avg Test Evaluation Time:   {avg_test_evaluation_time:.6f} seconds")
+
+                with open("odyssey_results.txt", "a") as f:
+
+                    def log(msg):
+                        print(msg)          # terminal
+                        print(msg, file=f)  # file
+
+                    log(f"--- Results for {algo.upper()} on {dname.upper()} ---")
+                    log(f"Indexing Time: {idx_time:.6f} seconds")
+                    log(f"Avg Saffron Search: {avg_saffron_time:.6f} seconds")
+                    log(f"Avg Naive Search:   {avg_naive_time:.6f} seconds")
+                    log(f"Avg Precision:      {avg_precision:.4f}")
+                    log(f"Avg Recall:         {avg_recall:.4f}")
+                    log(f"Avg Hash Time:      {avg_hash_time:.6f} seconds")
+                    log(f"Avg Decode Time:    {avg_decode_time:.6f} seconds")
+                    log(f"Avg Test Evaluation Time: {avg_test_evaluation_time:.6f} seconds")
+                    log("")
 
 

@@ -11,7 +11,7 @@
 typedef unsigned int uint;
 
 // C(ε) where ε is the gaurantee of recovering (1-ε)K of the K defective items
-const uint C_epsilon = 20;
+const uint C_epsilon = 2;
 
 const uint NUM_POOLS_COEFF = 400; // Increased to 400 for 1M+ points to ensure better isolation.
 const uint POOLS_PER_ITEM = 3; // c_d; each item appears in c_d pools

@@ -81,6 +81,11 @@ public:
                     hash_buckets_[h_val].postings[key].push_back(item);
                 }
             }
+            // For Debugging
+            if(pool_id%100 == 0){
+                cout<<pool_id<<" Pools Procssed"<<endl;
+                cout<<std::flush;
+            }
         }
 
         double gb = memoryUsage() / (1024.0 * 1024.0 * 1024.0);
