@@ -5,9 +5,13 @@
 
 #include "headers.hpp"
 
+struct PostingRange{
+    uint start_index;
+    uint item_count;
+};
 struct HashNode
 {
-    unordered_map<uint, vector<uint>> postings;
+    unordered_map<uint, PostingRange> postings;
 };
 
 
@@ -28,6 +32,7 @@ public:
     uint num_hashes_;
     uint threshold_;
     uint num_pools_;
+    vector<uint> doc_index_; 
 
     /**
      * @brief Empty constructor for OrionIndex.
@@ -72,27 +77,82 @@ public:
         
         hash_buckets_.clear();
         hash_buckets_.resize(hash_range_);
-        
+        doc_index_.clear();
+
+        struct Entry {
+            uint32_t h_val;
+            uint32_t key;
+            uint32_t item_id;
+        };
+
+        std::vector<Entry> entries;
+
+        entries.reserve(POOLS_PER_ITEM * all_hashes.size() * num_hashes_);
+        doc_index_.reserve(POOLS_PER_ITEM * all_hashes.size() * num_hashes_);
+
+
         for(uint pool_id = 0; pool_id < num_pools_; pool_id++ ){
             for(uint item : item_indices[pool_id]){
-                for(uint h = 0; h < num_hashes_; h++){
-                    uint h_val = all_hashes[item][h];
-                    uint key = getPoolHashKey(h, pool_id);
-                    hash_buckets_[h_val].postings[key].push_back(item);
+                for(uint h = 0;  h < num_hashes_; h++){
+                    Entry e;
+                    e.h_val = all_hashes[item][h];
+                    e.key = getPoolHashKey(h, pool_id);
+                    e.item_id = item;
+                    entries.push_back(e);
+
                 }
             }
-            // For Debugging
-            if(pool_id%100 == 0){
-                cout<<pool_id<<" Pools Procssed"<<endl;
-                cout<<std::flush;
+        }
+        // sort entries by hash_val and then among same hash_vals by key
+        std::sort(entries.begin(), entries.end(),
+            [](const Entry& a, const Entry& b) {
+                if (a.h_val != b.h_val)
+                    return a.h_val < b.h_val;
+                return a.key < b.key;
+            });
+
+        uint i = 0;
+        while (i < entries.size())
+        {
+            uint h_val = entries[i].h_val;
+            while(i < entries.size() && h_val == entries[i].h_val){
+                uint key = entries[i].key;
+                PostingRange info;
+                info.start_index = doc_index_.size();
+                while(i < entries.size() && entries[i].h_val == h_val && entries[i].key == key ){
+                    doc_index_.push_back(entries[i].item_id);
+                    i++;
+                }
+                info.item_count = doc_index_.size() - info.start_index;
+                hash_buckets_[h_val].postings[key] = info;
+
+
             }
         }
+        
 
-        double gb = memoryUsage() / (1024.0 * 1024.0 * 1024.0);
+        
+        
+        // for(uint pool_id = 0; pool_id < num_pools_; pool_id++ ){
+        //     for(uint item : item_indices[pool_id]){
+        //         for(uint h = 0; h < num_hashes_; h++){
+        //             uint h_val = all_hashes[item][h];
+        //             uint key = getPoolHashKey(h, pool_id);
+        //             hash_buckets_[h_val].postings[key].push_back(item);
+        //         }
+        //     }
+        //     // For Debugging
+        //     if(pool_id%100 == 0){
+        //         cout<<pool_id<<" Pools Procssed"<<endl;
+        //         cout<<std::flush;
+        //     }
+        // }
 
-        std::cout << "Approximate index size = "
-                << gb
-                << " GB\n";
+        // double gb = memoryUsage() / (1024.0 * 1024.0 * 1024.0);
+
+        // std::cout << "Approximate index size = "
+        //         << gb
+        //         << " GB\n";
         
     }
 
@@ -155,8 +215,11 @@ public:
                 continue;
             }
 
+            uint start_index = it->second.start_index;
+            uint item_count = it->second.item_count;
             // it->second is just hash_buckets_[q_h].postings[key] 
-            for(uint global_id : it->second ){
+            for( uint i = start_index; i < start_index + item_count; i++  ){
+                uint global_id = doc_index_[i];
                 if(++counts[global_id] >= threshold_){
                     return {true, global_id};
                 }
