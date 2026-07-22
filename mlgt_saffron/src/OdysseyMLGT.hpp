@@ -2,7 +2,7 @@
 #define OE6D4A82_31B5_4F0C_A8E1_7C9D2B5F64A3
 
 
-
+#include <atomic>
 #include <tuple>
 #include "headers.hpp"
 #include "BloomHashFunction.hpp"
@@ -72,13 +72,62 @@ public:
             }
         }
 
+        std::atomic<uint64_t> processed = 0;
         // Pre-calculate hashes for all items
         cout<<"Pre-calculate hashes for all items"<<endl;
         vector<vector<uint>> all_hashes(num_features_);
         #pragma omp parallel for
         for (int item_idx = 0; item_idx < (int)num_features_; ++item_idx) {
             all_hashes[item_idx] = shared_hasher_(data_eigen_.row(item_idx));
+
+            // Loader
+            uint64_t cnt = ++processed;
+            if (cnt % 10000 == 0 || cnt == num_features_) {
+                #pragma omp critical
+                {
+                    std::cout << "\rProcessed " << cnt << " / " << num_features_
+                            << " (" << std::fixed << std::setprecision(1)
+                            << (100.0 * cnt / num_features_) << "%)"
+                            << std::flush;
+                }
+            }
         }
+        std::cout << std::endl;
+
+        // cout << "Loading precomputed hashes..." << endl;
+        // vector<vector<uint>> all_hashes(num_features_);
+
+        // // TODO: replace with your filename
+        // std::ifstream file("../results/all_hashes.csv");
+
+        // std::string line;
+        // for (uint i = 0; i < num_features_ && std::getline(file, line); i++) {
+        //     std::stringstream ss(line);
+        //     std::string value;
+
+        //     while (std::getline(ss, value, ',')) {
+        //         all_hashes[i].push_back(std::stoul(value));
+        //     }
+        // }
+        // cout << "Finished loading hashes." << endl;
+        
+
+
+        // Dump hashes to CSV
+        // {
+        //     std::ofstream out("results/all_hashes.csv");
+
+        //     for (const auto& hashes : all_hashes) {
+        //         for (size_t i = 0; i < hashes.size(); i++) {
+        //             if (i) out << ",";
+        //             out << hashes[i];
+        //         }
+        //         out << "\n";
+        //     }
+        // }
+
+        // cout << "Saved all_hashes to results/all_hashes_2.csv" << endl;
+        
 
         // Build heliosIndex_
         cout<<"Building OrionIndex"<<endl;
@@ -87,7 +136,7 @@ public:
         // Index uses the extended pooling matrix
         heliosIndex_.build(all_hashes, extended_pooling_matrix_.pools_to_items);
         cout<<"OrionIndex Built"<<endl;
-
+                
 
 
         // Adding number of tests logging

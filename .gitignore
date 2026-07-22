@@ -61,3 +61,5 @@ results
 # results logs
 results.txt
 odyssey_results.txt
+heaptrack_report.txt
+*.zst

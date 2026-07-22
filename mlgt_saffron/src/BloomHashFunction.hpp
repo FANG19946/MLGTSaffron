@@ -42,11 +42,11 @@ public:
     {
         projection_matrix_.resize(num_hashes * num_bits, dimension);
         std::random_device rd;
-        std::mt19937 gen(rd());
+        std::mt19937 gen(42);
         std::normal_distribution<float> dis(0.0, 1.0);
         for (int i = 0; i < projection_matrix_.rows(); ++i) {
             for (int j = 0; j < projection_matrix_.cols(); ++j) {
-                projection_matrix_(i, j) = dis(gen);
+                projection_matrix_(i, j) = dis(gen); 
             }
         }
     }

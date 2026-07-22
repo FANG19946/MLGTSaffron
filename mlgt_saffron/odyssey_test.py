@@ -168,7 +168,9 @@ def test_saffron(
         start_time: float = time.time()
         # retrieved_indices: List[int] = saffron_index.search(query) # type: ignore
         # Updating saffron search with stats
-        result = saffron_index.search(query)
+        # result = saffron_index.search(query)
+        result = [0]
+
 
         # Had to Add this to recieve hash and decode time of MLGTSaffron because its not supported for other methods
         if isinstance(result, tuple):
@@ -177,7 +179,7 @@ def test_saffron(
             retrieved_indices = result
             hashing_time = 0.0
             decoding_time = 0.0
-            total_test_evaluation_time = 0.0
+            test_evaluation_time = 0.0
 
 
 

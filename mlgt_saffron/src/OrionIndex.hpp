@@ -69,7 +69,7 @@ public:
      * @param all_hashes A 2D vector where all_hashes[i] contains the hashes for item i.
      * @param item_indices A 2D vector where item_indices[pool_id] contains the global ids of the items in that pool
      */
-    void build(const vector<vector<uint>>& all_hashes, const vector<vector<uint>>& item_indices) {
+    void build( vector<vector<uint>>& all_hashes, const vector<vector<uint>>& item_indices) {
         if (all_hashes.empty() || item_indices.empty()) return;
         
         num_hashes_ = all_hashes[0].size();
@@ -85,6 +85,20 @@ public:
             uint32_t item_id;
         };
 
+        uint64_t num_entries = 0;
+
+        for (uint pool_id = 0; pool_id < num_pools_; pool_id++) {
+            for (uint item : item_indices[pool_id]) {
+                num_entries += num_hashes_;
+            }
+        }
+
+        std::cout << "Number of entries = " << num_entries << std::endl;
+        std::cout << "Approx memory (12-byte Entry) = "
+                << (num_entries * sizeof(Entry)) / (1024.0 * 1024 * 1024)
+                << " GiB" << std::endl;
+        return;
+        
         std::vector<Entry> entries;
 
         entries.reserve(POOLS_PER_ITEM * all_hashes.size() * num_hashes_);
@@ -103,6 +117,8 @@ public:
                 }
             }
         }
+        all_hashes.clear();
+        all_hashes.shrink_to_fit();
         // sort entries by hash_val and then among same hash_vals by key
         std::sort(entries.begin(), entries.end(),
             [](const Entry& a, const Entry& b) {
@@ -157,32 +173,32 @@ public:
     }
 
 
-    inline size_t memoryUsage() const {
-        size_t bytes = 0;
+    // inline size_t memoryUsage() const {
+    //     size_t bytes = 0;
 
-        // OrionIndex object itself
-        bytes += sizeof(*this);
+    //     // OrionIndex object itself
+    //     bytes += sizeof(*this);
 
-        // hash_buckets_ vector allocation
-        bytes += hash_buckets_.capacity() * sizeof(HashNode);
+    //     // hash_buckets_ vector allocation
+    //     bytes += hash_buckets_.capacity() * sizeof(HashNode);
 
-        for (const auto& bucket : hash_buckets_) {
+    //     for (const auto& bucket : hash_buckets_) {
 
-            // unordered_map bucket array
-            bytes += bucket.postings.bucket_count() * sizeof(void*);
+    //         // unordered_map bucket array
+    //         bytes += bucket.postings.bucket_count() * sizeof(void*);
 
-            // each hashmap node
-            bytes += bucket.postings.size() *
-                    sizeof(decltype(bucket.postings)::value_type);
+    //         // each hashmap node
+    //         bytes += bucket.postings.size() *
+    //                 sizeof(decltype(bucket.postings)::value_type);
 
-            // posting lists
-            for (const auto& [key, posting] : bucket.postings) {
-                bytes += posting.capacity() * sizeof(uint);
-            }
-        }
+    //         // posting lists
+    //         for (const auto& [key, posting] : bucket.postings) {
+    //             bytes += posting.capacity() * sizeof(uint);
+    //         }
+    //     }
 
-        return bytes;
-    }
+    //     return bytes;
+    // }
 
     /**
      * @brief It returns the result of a test as 0 (Negative) or 1 (Positive) and the defective item identified.
