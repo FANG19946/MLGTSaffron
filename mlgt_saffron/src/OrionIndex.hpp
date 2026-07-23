@@ -21,8 +21,8 @@ struct HashNode
  * Hash Function range is 0 to R
  * We have L such hash functions
  * The inverted index will store an array of size R which will have the hash_vals and a pointer to an flattened hashmap
- * The hashmap key = hash_function * num_pools + pool_index
- * How to access the elements: hash_buckets_[hash_val].postings[key]
+ * The hashmap key = hash_function + h_val * num_hashes_
+ * How to access the elements: hash_buckets_[pool_id].postings[key]
  * 
  */
 class OrionIndex {
@@ -37,17 +37,17 @@ public:
     /**
      * @brief Empty constructor for OrionIndex.
      */
-    OrionIndex() : hash_range_(0), num_hashes_(0), threshold_(0) {}
+    OrionIndex() : hash_range_(0), num_hashes_(0), threshold_(0), num_pools_(0) {}
     
     /**
      * @brief Construct a new Orion Index with specified parameters.
-     * @param hash_range The range of the Hash Functions.
+     * @param num_pools_ The number of pools.
      * @param num_hashes The number of hashes (LSH functions) per item.
      * @param threshold The number of matching hashes required for a query match.
      */
-    OrionIndex(uint hash_range, uint num_hashes, uint threshold) 
-        : hash_range_(hash_range), num_hashes_(num_hashes), threshold_(threshold) {
-        hash_buckets_.resize(hash_range);
+    OrionIndex(uint num_pools, uint num_hashes, uint threshold) 
+        : num_pools_(num_pools), num_hashes_(num_hashes), threshold_(threshold) {
+        hash_buckets_.resize(num_pools_);
         
     }
 
@@ -55,11 +55,11 @@ public:
      * @brief Generates Key for the Hashmap
      *  
      * @param hash_index The id of Hash Function
-     * @param pool_index The index of the pool
+     * @param h_val The hash value
      */
     
-    inline uint getPoolHashKey(uint hash_index, uint pool_index) const {
-        uint key = hash_index * num_pools_ + pool_index;
+    inline uint getPoolHashKey(uint hash_index, uint h_val) const {
+        uint key = hash_index + h_val * num_hashes_;
         return key;
     }
 
@@ -76,75 +76,74 @@ public:
         num_pools_ = item_indices.size();
         
         hash_buckets_.clear();
-        hash_buckets_.resize(hash_range_);
+        hash_buckets_.resize(num_pools_);
         doc_index_.clear();
 
+        uint num_features = all_hashes.size();
+        uint L =  ceil(log2(num_features));
+
+        doc_index_.reserve(POOLS_PER_ITEM * all_hashes.size() * num_hashes_ * L);
+
         struct Entry {
-            uint32_t h_val;
             uint32_t key;
             uint32_t item_id;
         };
 
-        uint64_t num_entries = 0;
-
-        for (uint pool_id = 0; pool_id < num_pools_; pool_id++) {
-            for (uint item : item_indices[pool_id]) {
-                num_entries += num_hashes_;
-            }
-        }
-
-        std::cout << "Number of entries = " << num_entries << std::endl;
-        std::cout << "Approx memory (12-byte Entry) = "
-                << (num_entries * sizeof(Entry)) / (1024.0 * 1024 * 1024)
-                << " GiB" << std::endl;
-        return;
-        
-        std::vector<Entry> entries;
-
-        entries.reserve(POOLS_PER_ITEM * all_hashes.size() * num_hashes_);
-        doc_index_.reserve(POOLS_PER_ITEM * all_hashes.size() * num_hashes_);
-
-
         for(uint pool_id = 0; pool_id < num_pools_; pool_id++ ){
+            
+            std::vector<Entry> entries;
             for(uint item : item_indices[pool_id]){
+                
                 for(uint h = 0;  h < num_hashes_; h++){
-                    Entry e;
-                    e.h_val = all_hashes[item][h];
-                    e.key = getPoolHashKey(h, pool_id);
-                    e.item_id = item;
-                    entries.push_back(e);
+                    Entry x;
+                    uint h_val = all_hashes[item][h];
+                    uint key = getPoolHashKey(h, h_val);
+                    x.key = key;
+                    x.item_id = item;
+                    entries.push_back(x);
 
                 }
+
+                
+
+            }
+            // sort entries by hash_val and then among same hash_vals by key
+            std::sort(entries.begin(), entries.end(),
+                [](const Entry& a, const Entry& b) {
+                    return a.key < b.key;
+                });
+            
+            for(int i = entries.size() - 1 ; i >= 0; i-- ){
+                uint key = entries[i].key;
+                int j =  i - 1;
+                uint start_index = doc_index_.size();
+                uint item_count = 0;
+                PostingRange info;
+                info.start_index = start_index;
+                while(j >= 0 && key == entries[j].key){
+                    item_count++;
+                    i--;
+                    j = i - 1;
+                    doc_index_.push_back(entries[i].item_id);
+                    
+                }
+                // if(j == -1){
+                    doc_index_.push_back(entries[i].item_id);
+                    item_count++;
+                    
+                // }
+                info.item_count = item_count;
+                hash_buckets_[pool_id].postings[key] = info;
+                
+
+
             }
         }
         all_hashes.clear();
         all_hashes.shrink_to_fit();
-        // sort entries by hash_val and then among same hash_vals by key
-        std::sort(entries.begin(), entries.end(),
-            [](const Entry& a, const Entry& b) {
-                if (a.h_val != b.h_val)
-                    return a.h_val < b.h_val;
-                return a.key < b.key;
-            });
+        
 
-        uint i = 0;
-        while (i < entries.size())
-        {
-            uint h_val = entries[i].h_val;
-            while(i < entries.size() && h_val == entries[i].h_val){
-                uint key = entries[i].key;
-                PostingRange info;
-                info.start_index = doc_index_.size();
-                while(i < entries.size() && entries[i].h_val == h_val && entries[i].key == key ){
-                    doc_index_.push_back(entries[i].item_id);
-                    i++;
-                }
-                info.item_count = doc_index_.size() - info.start_index;
-                hash_buckets_[h_val].postings[key] = info;
-
-
-            }
-        }
+        
         
 
         
@@ -217,7 +216,7 @@ public:
 
         for(uint h = 0; h < num_hashes_ ; h++){
             uint q_h = query_hashes[h];
-            uint key = getPoolHashKey(h, pool_index);
+            uint key = getPoolHashKey(h, q_h);
 
             // Checking if query hash can match threshold
             if(hash_misses > num_hashes_ - threshold_){
@@ -225,8 +224,8 @@ public:
             }
             
             // Skip if Query Hash doesn't exist in Index
-            auto it = hash_buckets_[q_h].postings.find(key);
-            if(it == hash_buckets_[q_h].postings.end()){
+            auto it = hash_buckets_[pool_index].postings.find(key);
+            if(it == hash_buckets_[pool_index].postings.end()){
                 hash_misses++;
                 continue;
             }
