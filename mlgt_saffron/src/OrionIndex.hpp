@@ -4,6 +4,8 @@
 
 
 #include "headers.hpp"
+#include <algorithm>
+#include <execution>
 
 struct PostingRange{
     uint start_index;
@@ -82,7 +84,7 @@ public:
         uint num_features = all_hashes.size();
         uint L =  ceil(log2(num_features));
 
-        doc_index_.reserve(POOLS_PER_ITEM * all_hashes.size() * num_hashes_ * L);
+        doc_index_.reserve(POOLS_PER_ITEM * all_hashes.size() * num_hashes_ * L * 3);
 
         struct Entry {
             uint32_t key;
@@ -108,30 +110,29 @@ public:
 
             }
             // sort entries by hash_val and then among same hash_vals by key
-            std::sort(entries.begin(), entries.end(),
+            std::sort(std::execution::par, entries.begin(), entries.end(),
                 [](const Entry& a, const Entry& b) {
                     return a.key < b.key;
                 });
             
-            for(int i = entries.size() - 1 ; i >= 0; i-- ){
+            for(int i = entries.size() - 1 ; i >= 0; ){
                 uint key = entries[i].key;
-                int j =  i - 1;
+                // int j =  i - 1;
                 uint start_index = doc_index_.size();
-                uint item_count = 0;
+                uint item_count = 1;
                 PostingRange info;
                 info.start_index = start_index;
-                while(j >= 0 && key == entries[j].key){
+                doc_index_.push_back(entries[i].item_id);
+                i--;
+                while(i >= 0 && key == entries[i].key){
                     item_count++;
-                    i--;
-                    j = i - 1;
                     doc_index_.push_back(entries[i].item_id);
+                    i--;
+                    // j = i - 1;
                     
                 }
-                // if(j == -1){
-                    doc_index_.push_back(entries[i].item_id);
-                    item_count++;
-                    
-                // }
+              
+
                 info.item_count = item_count;
                 hash_buckets_[pool_id].postings[key] = info;
                 
@@ -141,7 +142,23 @@ public:
         }
         all_hashes.clear();
         all_hashes.shrink_to_fit();
-        
+        size_t expected = 0;
+        for (const auto &pool : item_indices)
+            expected += pool.size() * num_hashes_;
+
+        cout << "Expected postings = " << expected << endl;
+        cout << "Actual doc_index size = " << doc_index_.size() << endl;
+        size_t total_counts = 0;
+
+        for (const auto& bucket : hash_buckets_) {
+            for (const auto& [key, range] : bucket.postings) {
+                total_counts += range.item_count;
+
+                assert(range.start_index + range.item_count <= doc_index_.size());
+            }
+        }
+
+        cout << "Total posting counts = " << total_counts << endl;
 
         
         

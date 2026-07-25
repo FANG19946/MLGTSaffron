@@ -73,7 +73,7 @@ public:
         }
 
         std::atomic<uint64_t> processed = 0;
-        // Pre-calculate hashes for all items
+        // // Pre-calculate hashes for all items
         cout<<"Pre-calculate hashes for all items"<<endl;
         vector<vector<uint>> all_hashes(num_features_);
         #pragma omp parallel for
@@ -98,7 +98,11 @@ public:
         // vector<vector<uint>> all_hashes(num_features_);
 
         // // TODO: replace with your filename
-        // std::ifstream file("../results/all_hashes.csv");
+        // std::ifstream file("/home/adnan/projects/MLGTSaffron/results/all_hashes_2.csv");
+        // if (!file.is_open()) {
+        //     std::cerr << "Failed to open file!" << std::endl;
+        //     std::exit(1);
+        // }
 
         // std::string line;
         // for (uint i = 0; i < num_features_ && std::getline(file, line); i++) {
@@ -115,7 +119,7 @@ public:
 
         // Dump hashes to CSV
         // {
-        //     std::ofstream out("results/all_hashes.csv");
+        //     std::ofstream out("results/all_hashes_2.csv");
 
         //     for (const auto& hashes : all_hashes) {
         //         for (size_t i = 0; i < hashes.size(); i++) {
@@ -131,8 +135,9 @@ public:
 
         // Build heliosIndex_
         cout<<"Building OrionIndex"<<endl;
-        uint hash_range = 1u << hash_bits_;
-        heliosIndex_ = OrionIndex(hash_range, num_hashes_, threshold_);
+        uint extended_num_pools =  extended_pooling_matrix_.pools_to_items.size();
+        // uint hash_range = 1u << hash_bits_;
+        heliosIndex_ = OrionIndex(extended_num_pools, num_hashes_, threshold_);
         // Index uses the extended pooling matrix
         heliosIndex_.build(all_hashes, extended_pooling_matrix_.pools_to_items);
         cout<<"OrionIndex Built"<<endl;
@@ -181,7 +186,7 @@ protected:
 
         // Check if parallel threading works
         auto t_test_evaluation_start = std::chrono::high_resolution_clock::now();
-        #pragma omp parallel for
+        // #pragma omp parallel for
         for(uint pool_id = 0; pool_id < num_pools_; pool_id++){
             uint extended_base = pool_id * signature_length_;
             for(uint j = 0; j < signature_length_; j++){

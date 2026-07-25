@@ -168,8 +168,8 @@ def test_saffron(
         start_time: float = time.time()
         # retrieved_indices: List[int] = saffron_index.search(query) # type: ignore
         # Updating saffron search with stats
-        # result = saffron_index.search(query)
-        result = [0]
+        result = saffron_index.search(query)
+        # result = [0]
 
 
         # Had to Add this to recieve hash and decode time of MLGTSaffron because its not supported for other methods
@@ -296,21 +296,21 @@ if __name__ == "__main__":
         "--num-hashes",
         type=int,
         nargs="+",
-        default=[100],
+        default=[50],
         help="Number of hashes for Bloom Filter (default: 100)"
     )
     parser.add_argument(
         "--hash-bits",
         type=int,
         nargs="+",
-        default=[16],
+        default=[20],
         help="Bits per hash for Bloom Filter (default: 16)"
     )
     parser.add_argument(
         "--threshold",
         type=int,
         nargs="+",
-        default=[10],
+        default=[20],
         help="Match threshold for Bloom Filter (default: 10)"
     )
     parser.add_argument(
