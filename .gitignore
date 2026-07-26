@@ -63,3 +63,11 @@ results.txt
 odyssey_results.txt
 heaptrack_report.txt
 *.zst
+
+# some files i created to debug
+output.txt
+print_hashes
+orion_test.cpp
+orion_test
+all_hash
+all_hash.cpp

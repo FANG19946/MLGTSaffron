@@ -74,46 +74,46 @@ public:
 
         std::atomic<uint64_t> processed = 0;
         // // Pre-calculate hashes for all items
-        cout<<"Pre-calculate hashes for all items"<<endl;
-        vector<vector<uint>> all_hashes(num_features_);
-        #pragma omp parallel for
-        for (int item_idx = 0; item_idx < (int)num_features_; ++item_idx) {
-            all_hashes[item_idx] = shared_hasher_(data_eigen_.row(item_idx));
-
-            // Loader
-            uint64_t cnt = ++processed;
-            if (cnt % 10000 == 0 || cnt == num_features_) {
-                #pragma omp critical
-                {
-                    std::cout << "\rProcessed " << cnt << " / " << num_features_
-                            << " (" << std::fixed << std::setprecision(1)
-                            << (100.0 * cnt / num_features_) << "%)"
-                            << std::flush;
-                }
-            }
-        }
-        std::cout << std::endl;
-
-        // cout << "Loading precomputed hashes..." << endl;
+        // cout<<"Pre-calculate hashes for all items"<<endl;
         // vector<vector<uint>> all_hashes(num_features_);
+        // #pragma omp parallel for
+        // for (int item_idx = 0; item_idx < (int)num_features_; ++item_idx) {
+        //     all_hashes[item_idx] = shared_hasher_(data_eigen_.row(item_idx));
 
-        // // TODO: replace with your filename
-        // std::ifstream file("/home/adnan/projects/MLGTSaffron/results/all_hashes_2.csv");
-        // if (!file.is_open()) {
-        //     std::cerr << "Failed to open file!" << std::endl;
-        //     std::exit(1);
-        // }
-
-        // std::string line;
-        // for (uint i = 0; i < num_features_ && std::getline(file, line); i++) {
-        //     std::stringstream ss(line);
-        //     std::string value;
-
-        //     while (std::getline(ss, value, ',')) {
-        //         all_hashes[i].push_back(std::stoul(value));
+        //     // Loader
+        //     uint64_t cnt = ++processed;
+        //     if (cnt % 10000 == 0 || cnt == num_features_) {
+        //         #pragma omp critical
+        //         {
+        //             std::cout << "\rProcessed " << cnt << " / " << num_features_
+        //                     << " (" << std::fixed << std::setprecision(1)
+        //                     << (100.0 * cnt / num_features_) << "%)"
+        //                     << std::flush;
+        //         }
         //     }
         // }
-        // cout << "Finished loading hashes." << endl;
+        // std::cout << std::endl;
+
+        cout << "Loading precomputed hashes..." << endl;
+        vector<vector<uint>> all_hashes(num_features_);
+
+        
+        std::ifstream file("/home/adnan/projects/MLGTSaffron/results/all_hashes_2.csv");
+        if (!file.is_open()) {
+            std::cerr << "Failed to open file!" << std::endl;
+            std::exit(1);
+        }
+
+        std::string line;
+        for (uint i = 0; i < num_features_ && std::getline(file, line); i++) {
+            std::stringstream ss(line);
+            std::string value;
+
+            while (std::getline(ss, value, ',')) {
+                all_hashes[i].push_back(std::stoul(value));
+            }
+        }
+        cout << "Finished loading hashes." << endl;
         
 
 
@@ -181,12 +181,12 @@ protected:
         double hashing_time = std::chrono::duration<double>(t_hash_end - t_hash_start).count();
         
         
-        vector<vector<bool>> residuals(num_pools_, vector<bool>(signature_length_, false));
+        vector<vector<bool>> residuals(num_pools_, vector<bool>(signature_length_, true));
         set<uint> identified_defectives;
 
         // Check if parallel threading works
         auto t_test_evaluation_start = std::chrono::high_resolution_clock::now();
-        // #pragma omp parallel for
+        #pragma omp parallel for
         for(uint pool_id = 0; pool_id < num_pools_; pool_id++){
             uint extended_base = pool_id * signature_length_;
             for(uint j = 0; j < signature_length_; j++){
@@ -197,6 +197,8 @@ protected:
                     identified_defectives.insert(global_id);
                 }
             }
+                // fprintf(stderr, "pool_id=%u\n", pool_id);
+                // fflush(stderr);
         }
         auto t_test_evaluation_end = std::chrono::high_resolution_clock::now();
         double test_evaluation_time = std::chrono::duration<double>(t_test_evaluation_end - t_test_evaluation_start).count();

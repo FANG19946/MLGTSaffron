@@ -499,7 +499,22 @@ protected:
 
                 
                 // 1 OR Unknown != 0
-                assert(!(measurement[bit_id] == 0 && defective_signature[bit_id] == 1));
+                // assert(!(measurement[bit_id] == 0 && defective_signature[bit_id] == 1));
+                // Temporarily removed assert to DEBUG
+                if((measurement[bit_id] == 0 && defective_signature[bit_id] == 1))
+                {
+                    // cout<<"measurement : ";
+                    for (bool b : measurement)
+                        std::cout << b;
+                    std::cout << '\n';
+                    // cout<<"defective_item_id : "<<defective_item_id;
+                    // cout<<"defective_item_signature : ";
+                    for (bool b : defective_signature)
+                        std::cout << b;
+                    std::cout << '\n';
+
+                }
+                
 
                 if(measurement[bit_id] == 1){
                     if(defective_signature[bit_id] == 1){
