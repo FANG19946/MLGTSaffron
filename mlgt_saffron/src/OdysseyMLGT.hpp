@@ -186,14 +186,15 @@ protected:
 
         // Check if parallel threading works
         auto t_test_evaluation_start = std::chrono::high_resolution_clock::now();
-        #pragma omp parallel for
+        #pragma omp parallel for collapse(2)
         for(uint pool_id = 0; pool_id < num_pools_; pool_id++){
-            uint extended_base = pool_id * signature_length_;
             for(uint j = 0; j < signature_length_; j++){
+                uint extended_base = pool_id * signature_length_;
                 uint extended_pool_id = extended_base + j;
                 auto [pool_status, global_id] = heliosIndex_.get_matches(query_hashes, extended_pool_id);
                 residuals[pool_id][j] = pool_status;
                 if(pool_status){
+                    #pragma omp critical
                     identified_defectives.insert(global_id);
                 }
             }

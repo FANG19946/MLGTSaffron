@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 PLOTS_DIR = "plots"
-OUTPUT_DIR = os.path.join("PLOTS_DIR", "histograms")
+OUTPUT_DIR = os.path.join("plots", "histograms")
 
 # Create output directory
 os.makedirs(OUTPUT_DIR, exist_ok=True)

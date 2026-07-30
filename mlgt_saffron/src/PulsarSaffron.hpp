@@ -23,7 +23,7 @@ protected:
     uint num_pools_; // Total number of pools (m).
     uint signature_length_; // Length of the signatures.
     int debug_ = 0; // Debug level (0 for none, higher values for more verbose output)
-    uint num_permutations_ = 3; // The number of permuations used by Saffron.
+    uint num_permutations_ = 2; // The number of permuations used by Saffron.
     vector<vector<uint>> permutation_map_; // The permutation_map which has signature_numbers for the item_ids.
     vector<vector<bool>> signature_matrix_;  // signature_matrix[item_id] has full signature of item.
     NovaMatrix extended_pooling_matrix_; // Extended Pooling Matrix which expands the signatures as individual pools.
@@ -36,7 +36,7 @@ public:
      * @param sparsity Expected sparsity level (k).
      * @param debug Debug level.
      */
-    PulsarSaffron(uint num_features, uint sparsity, int debug = 0, uint num_permutations = 3) :
+    PulsarSaffron(uint num_features, uint sparsity, int debug = 0, uint num_permutations = 2) :
         num_features_(num_features),
         sparsity_(sparsity),
         debug_(debug),
@@ -258,7 +258,7 @@ protected:
      * @return vector<vector<uint>> signature_map[item_id][j] gives the j-th signature_number for item_id.
      */
 
-    inline vector<vector<uint>> getPermutationMap(uint num_permutations = 3){
+    inline vector<vector<uint>> getPermutationMap(uint num_permutations = 2){
         vector<uint> id_to_sign;
         vector<uint> permutation;
         vector<vector<uint>> permutation_map;
