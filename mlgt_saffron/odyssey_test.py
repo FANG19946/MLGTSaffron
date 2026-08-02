@@ -14,7 +14,7 @@ CUR_DIR: str = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(CUR_DIR)
 DATASETS = ["imagenet", "imdb_wiki", "insta_1m", "mirflickr"]
 
-from mlgt_saffron import  MLGTSaffron, BloomGroupTestingSaffron, MLGTGlobal, OdysseyMLGT
+from mlgt_saffron import  MLGTSaffron, BloomGroupTestingSaffron, MLGTGlobal, OdysseyMLGT, BruteForceHashSearch
 
 # Global Constant
 CURRENT_DATASET = None
@@ -120,24 +120,56 @@ def test_saffron(
             num_hashes=num_hashes, hash_bits=hash_bits, threshold=threshold,
             debug=verbose
         ) # type: ignore
+        brute_index = BruteForceHashSearch(
+        threshold,
+        dataset.shape[0],
+        dataset.shape[1],
+        num_hashes,
+        hash_bits, 
+        verbose
+        )
     elif algo_name == "global":
         saffron_index = MLGTGlobal(
             dataset, num_neighbors, 
             num_hashes=num_hashes, hash_bits=hash_bits, threshold=threshold,
             debug=verbose
         ) # type: ignore
+        brute_index = BruteForceHashSearch(
+        threshold,
+        dataset.shape[0],
+        dataset.shape[1],
+        num_hashes,
+        hash_bits, 
+        verbose
+        )
     elif algo_name == "bloom":
         saffron_index = BloomGroupTestingSaffron(
             dataset, num_neighbors,
             num_hashes=num_hashes, hash_bits=hash_bits, threshold=threshold,
             debug=verbose
         ) # type: ignore
+        brute_index = BruteForceHashSearch(
+        threshold,
+        dataset.shape[0],
+        dataset.shape[1],
+        num_hashes,
+        hash_bits, 
+        verbose
+        )
     elif algo_name == "odyssey":
         saffron_index = OdysseyMLGT(
         dataset, num_neighbors, 
         num_hashes=num_hashes, hash_bits=hash_bits, threshold=threshold,
-        debug=verbose
-    ) # type: ignore
+        debug=verbose   
+        ) # type: ignore
+        brute_index = BruteForceHashSearch(
+        threshold,
+        dataset.shape[0],
+        dataset.shape[1],
+        num_hashes,
+        hash_bits, 
+        verbose
+        )
     else:
         raise ValueError(f"Unknown algorithm: {algo_name}")
     
@@ -194,9 +226,8 @@ def test_saffron(
         
         # Naive search
         start_time = time.time()
-        distances: ndarray = dataset @ query
-        true_indices: ndarray = np.argsort(distances)[-num_neighbors:]
-        naive_time: float = time.time() - start_time
+        true_indices = brute_index.bruteSearch(query)
+        naive_time = time.time() - start_time
         
         # Compute precision and recall
         retrieved_set: Set[int] = set(retrieved_indices)

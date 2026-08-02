@@ -14,6 +14,7 @@
 #include "NovaMatrix.hpp"
 #include "PulsarSaffron.hpp"
 #include "OdysseyMLGT.hpp"
+#include "BruteForceHashSearch.hpp"
 
 namespace py = pybind11;
 
@@ -246,5 +247,26 @@ PYBIND11_MODULE(mlgt_saffron, m) {
     .def("search", &OdysseyMLGT::search, py::arg("query"))
     .def("__call__", &OdysseyMLGT::operator(), py::arg("query"));
     
+     // Brute Force Search
+     py::class_<BruteForceHashSearch>(
+     m,
+     "BruteForceHashSearch",
+     "Brute-force hash search baseline.")
+     .def(py::init<
+               uint,
+               uint,
+               uint,
+               uint,
+               uint,
+               int>(),
+          py::arg("threshold"),
+          py::arg("num_features"),
+          py::arg("dimension"),
+          py::arg("num_hashes"),
+          py::arg("hash_bits"),
+          py::arg("debug") = 0)
+     .def("bruteSearch",
+          &BruteForceHashSearch::bruteSearch,
+          py::arg("query"));
 }
 

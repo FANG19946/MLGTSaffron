@@ -232,9 +232,11 @@ public:
         set<uint> identified = peelingAlgorithm(residuals, identified_defectives);
         auto t_decode_end = std::chrono::high_resolution_clock::now();
         double decoding_time = std::chrono::duration<double>(t_decode_end - t_decode_start).count();
+
+        std::vector<uint> v(identified.begin(), identified.end());
         
 
-        return {getTopKEigen(query, data_eigen_, identified, sparsity_), hashing_time, decoding_time, test_evaluation_time };
+        return { v, hashing_time, decoding_time, test_evaluation_time };
     }
 
     /**
