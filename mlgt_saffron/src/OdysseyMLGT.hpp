@@ -169,10 +169,10 @@ protected:
      * query, then combines their pre-computed signatures to form the pool residual.
      * 
      * @param query_vec Normalized query vector (Eigen).
-     * @return vector<vector<bool>> The num_pools x signature_bits residual matrix, set<uint> identified_defectives contains the set of items that are defectives, double hashing_time Time taken to hash th query vector.
+     * @return vector<vector<bool>> The num_pools x signature_bits residual matrix, set<uint> identified_defectives contains the set of items that are defectives, double hashing_time Time taken to hash th query vector, double test_evaluation_time time taken to evaluate all the tests parallely, uint total_postings_traversed the total number of postings traversed for all pools.
      */
-    // Changed getResiduals to return tuple {residuals, identified_defectives, hashing_time}
-    inline std::tuple<vector<vector<bool>>, set<uint>,  double, double> getResiduals(const Eigen::VectorXf& query_vec) const {
+    // Changed getResiduals to return tuple {residuals, identified_defectives, hashing_time, total_postings_traversed}
+    inline std::tuple<vector<vector<bool>>, set<uint>,  double, double, uint> getResiduals(const Eigen::VectorXf& query_vec) const {
 
         // Hashing Time
         auto t_hash_start = std::chrono::high_resolution_clock::now();
@@ -184,28 +184,33 @@ protected:
         vector<vector<bool>> residuals(num_pools_, vector<bool>(signature_length_, true));
         set<uint> identified_defectives;
 
-        // Check if parallel threading works
+        
         auto t_test_evaluation_start = std::chrono::high_resolution_clock::now();
+        uint total_postings_traversed = 0;
         #pragma omp parallel for collapse(2)
         for(uint pool_id = 0; pool_id < num_pools_; pool_id++){
             for(uint j = 0; j < signature_length_; j++){
                 uint extended_base = pool_id * signature_length_;
                 uint extended_pool_id = extended_base + j;
-                auto [pool_status, global_id] = heliosIndex_.get_matches(query_hashes, extended_pool_id);
+                auto [pool_status, global_id, postings_traversed] = heliosIndex_.get_matches(query_hashes, extended_pool_id);
                 residuals[pool_id][j] = pool_status;
-                if(pool_status){
-                    #pragma omp critical
-                    identified_defectives.insert(global_id);
+
+                #pragma omp critical
+                {
+                    total_postings_traversed += postings_traversed;
+                    if(pool_status){
+                        identified_defectives.insert(global_id);                    
+                    }
                 }
+                
             }
-                // fprintf(stderr, "pool_id=%u\n", pool_id);
-                // fflush(stderr);
+
         }
         auto t_test_evaluation_end = std::chrono::high_resolution_clock::now();
         double test_evaluation_time = std::chrono::duration<double>(t_test_evaluation_end - t_test_evaluation_start).count();
 
 
-        return {residuals, identified_defectives, hashing_time, test_evaluation_time};
+        return {residuals, identified_defectives, hashing_time, test_evaluation_time, total_postings_traversed};
     }
 
 public:
@@ -215,8 +220,8 @@ public:
      * @param query_arr The query vector (numpy array).
      * @return vector<uint> Top K item indices.
      */
-    // Changed search to return (topK, hashing_time, decoding_time)
-    inline std::tuple<std::vector<uint>, double, double, double> search(pybind11::array_t<float> query_arr) {
+    // Changed search to return (topK, hashing_time, decoding_time, total_postings_traversed)
+    inline std::tuple<std::vector<uint>, double, double, double, uint> search(pybind11::array_t<float> query_arr) {
         Eigen::Map<const Eigen::VectorXf> q_raw(query_arr.data(), dimension_);
         Eigen::VectorXf query = q_raw;
         if (normalize_) {
@@ -225,7 +230,7 @@ public:
         }
 
         // Updated return of getResiduals()
-        auto [residuals, identified_defectives, hashing_time, test_evaluation_time] = getResiduals(query);
+        auto [residuals, identified_defectives, hashing_time, test_evaluation_time, total_postings_traversed] = getResiduals(query);
         
         // Decoding Time
         auto t_decode_start = std::chrono::high_resolution_clock::now();
@@ -236,7 +241,7 @@ public:
         std::vector<uint> v(identified.begin(), identified.end());
         
 
-        return { v, hashing_time, decoding_time, test_evaluation_time };
+        return { v, hashing_time, decoding_time, test_evaluation_time, total_postings_traversed };
     }
 
     /**

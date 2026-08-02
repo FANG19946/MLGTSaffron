@@ -196,7 +196,7 @@ PYBIND11_MODULE(mlgt_saffron, m) {
 
      // OrionIndex
      py::class_<OrionIndex>(m, "OrionIndex",
-     "Global inverted index organized by hash value.")
+     "Global inverted index organized by pools.")
      .def(py::init<uint, uint, uint>(),
          py::arg("hash_range"),
          py::arg("num_hashes"),

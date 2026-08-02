@@ -11,6 +11,7 @@
 #include <parallel/algorithm>
 #include "ProgressBar.hpp"
 #include <atomic>
+#include <tuple>
 
 struct PostingRange{
     uint start_index;
@@ -180,20 +181,23 @@ public:
 
 
     /**
-     * @brief It returns the result of a test as 0 (Negative) or 1 (Positive) and the defective item identified.
+     * @brief It returns the result of a test as 0 (Negative) or 1 (Positive) and the defective item identified and length of postings traversed.
      * IMPORTANT
      * Please note that if the test result is negaative the uint value is set by default to 0.
      * @param query_hashes The pre-computed hashes of the query vector.
      * @param pool_index Index of the pool being evaluated.
-     * @return pair<bool, uint> Test Result and if positive also has the global_id of the positive item.
+     * @return tuple<bool, uint, uint> Test Result and if positive also has the global_id of the positive item and the length of postings list traversed.
      */
-    inline pair<bool, uint> get_matches(const vector<uint> &query_hashes, uint pool_index) const {
-        if (num_hashes_ == 0 ) return {false, 0};
+    inline std::tuple<bool, uint, uint> get_matches(const vector<uint> &query_hashes, uint pool_index) const {
+        
+        uint postings_traversed = 0;
+        if (num_hashes_ == 0 ) return {false, 0, postings_traversed};
         
                     
         unordered_map<uint, uint> counts;
         uint hash_misses = 0;
         uint shard = pool_index % num_shards_; 
+
 
         for(uint h = 0; h < num_hashes_ ; h++){
             uint q_h = query_hashes[h];
@@ -201,7 +205,7 @@ public:
 
             // Checking if query hash can match threshold
             if(hash_misses > num_hashes_ - threshold_){
-                return {false, 0};
+                return {false, 0, postings_traversed};
             }
             
             // Skip if Query Hash doesn't exist in Index
@@ -219,13 +223,69 @@ public:
 
             for( uint i = start_index; i < start_index + item_count; i++  ){
                 uint global_id = doc_index_[shard][i];
+                postings_traversed++;
                 if(++counts[global_id] >= threshold_){
                     // cout<<"Positive item_id : "<<global_id<<endl<<"Pool Index : "<<pool_index<<endl;
-                    return {true, global_id};
+                    return {true, global_id, postings_traversed};
                 }
             }              
         }
-        return {false, 0};        
+        return {false, 0, postings_traversed};        
+    }
+
+    /**
+     * @brief It returns the result of a test as 0 (Negative) or 1 (Positive) and all defective items identified and length of postings traversed.
+     * IMPORTANT
+     * Please note that if the test result is negaative the uint value is set by default to 0.
+     * @param query_hashes The pre-computed hashes of the query vector.
+     * @param pool_index Index of the pool being evaluated.
+     * @return tuple<bool, uint, uint> Test Result and if positive also has the global_id of the positive item and the length of postings list traversed.
+     */
+    inline std::tuple<bool, set<uint>, uint> get_full_matches(const vector<uint> &query_hashes, uint pool_index) const {
+        
+        uint postings_traversed = 0;       
+        set<uint> all_defectives;
+        if (num_hashes_ == 0 ) return {false, all_defectives, postings_traversed};
+        
+                    
+        unordered_map<uint, uint> counts;
+        uint hash_misses = 0;
+        uint shard = pool_index % num_shards_; 
+
+
+        for(uint h = 0; h < num_hashes_ ; h++){
+            uint q_h = query_hashes[h];
+            uint key = getPoolHashKey(h, q_h);
+
+            // Checking if query hash can match threshold
+            if(hash_misses > num_hashes_ - threshold_){
+                return {false, all_defectives, postings_traversed};
+            }
+            
+            // Skip if Query Hash doesn't exist in Index
+            auto it = hash_buckets_[pool_index].postings.find(key);
+            if(it == hash_buckets_[pool_index].postings.end()){
+                hash_misses++;
+                continue;
+            }
+
+            uint start_index = it->second.start_index;
+            uint item_count = it->second.item_count;
+            // it->second is just hash_buckets_[pool_index].postings[key] 
+
+  
+
+            for( uint i = start_index; i < start_index + item_count; i++  ){
+                uint global_id = doc_index_[shard][i];
+                postings_traversed++;
+                if(++counts[global_id] == threshold_){
+                    // cout<<"Positive item_id : "<<global_id<<endl<<"Pool Index : "<<pool_index<<endl;
+                    all_defectives.insert(global_id);
+                }
+            }              
+        }
+       
+        return {!all_defectives.empty(), all_defectives, postings_traversed};        
     }
  
     /**

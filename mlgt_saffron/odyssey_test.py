@@ -54,9 +54,12 @@ def plot_saffron_search_times(
 
 def save_saffron_search_times_csv(
     saffron_times: List[float],
+    naive_times: List[float],
     hash_times: List[float],
     decode_times: List[float],
     test_evaluation_times: List[float],
+    saffron_postings_traversal: List[float],
+    naive_postings_traversal: List[float],
     dataset_name: str,
     algo_name: str,
 ):
@@ -71,10 +74,10 @@ def save_saffron_search_times_csv(
 
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Query", "Saffron Time", "Hash Time", "Decode Time", "Test Evaluation Time"])
+        writer.writerow(["Query", "Saffron Time", "Naive Times", "Hash Time", "Decode Time", "Test Evaluation Time", "Saffron Postings Traversed", "Naive Postings Traversed"])
 
-        for i, (s, h, d, t) in enumerate(zip(saffron_times, hash_times, decode_times, test_evaluation_times), start=1):
-            writer.writerow([i, s, h, d, t])
+        for i, (s, n, h, d, t, sp, np) in enumerate(zip(saffron_times, naive_times, hash_times, decode_times, test_evaluation_times, saffron_postings_traversal, naive_postings_traversal ), start=1):
+            writer.writerow([i, s, n, h, d, t, sp, np])
 
     print(f"Saved CSV to {filename}")
 
@@ -186,6 +189,10 @@ def test_saffron(
     hash_times: List[float] = []
     decode_times: List[float] = []
     test_evaluation_times: List[float] = []
+    saffron_postings_traversed: List[float] = []
+    naive_postings_traversed: List[float] = []
+    naive_times: List[float] = []
+
     # endregion
     
 
@@ -206,12 +213,13 @@ def test_saffron(
 
         # Had to Add this to recieve hash and decode time of MLGTSaffron because its not supported for other methods
         if isinstance(result, tuple):
-            retrieved_indices, hashing_time, decoding_time, test_evaluation_time = result
+            retrieved_indices, hashing_time, decoding_time, test_evaluation_time, postings_traversed = result
         else:
             retrieved_indices = result
             hashing_time = 0.0
             decoding_time = 0.0
             test_evaluation_time = 0.0
+            postings_traversed = 0
 
 
 
@@ -221,13 +229,15 @@ def test_saffron(
         hash_times.append(hashing_time)
         decode_times.append(decoding_time)
         test_evaluation_times.append(test_evaluation_time)
+        saffron_postings_traversed.append(postings_traversed)
 
 
         
         # Naive search
-        start_time = time.time()
-        true_indices = brute_index.bruteSearch(query)
-        naive_time = time.time() - start_time
+        true_indices, naive_postings, naive_time = brute_index.bruteSearch(query)
+        naive_postings_traversed.append(naive_postings)
+        naive_times.append(naive_time)
+        
         
         # Compute precision and recall
         retrieved_set: Set[int] = set(retrieved_indices)
@@ -270,7 +280,7 @@ def test_saffron(
     # Plot Histogram 
     # plot_saffron_search_times(saffron_times, CURRENT_DATASET, ALGO_NAME)
     # Save CSV
-    save_saffron_search_times_csv( saffron_times, hash_times, decode_times, test_evaluation_times, CURRENT_DATASET, ALGO_NAME)
+    save_saffron_search_times_csv( saffron_times, naive_times, hash_times, decode_times, test_evaluation_times, saffron_postings_traversed, naive_postings_traversed, CURRENT_DATASET, ALGO_NAME)
     return idx_time, avg_saffron_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_decode_time, avg_test_evaluation_time
 
 
