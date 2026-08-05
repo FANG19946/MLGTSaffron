@@ -19,7 +19,6 @@
 class OdysseyMLGT : public PulsarSaffron {
 protected:
     BloomHashFunction shared_hasher_; 
-    vector<GlobalInvertedIndex> pool_indices_; // This is probably no longer needed.
     OrionIndex heliosIndex_; // Haven't thought too much of initialization will comeback to this later.
     Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> data_eigen_;
     vector<vector<bool>> item_signatures_; // I already created the same item in PulsarSafforn called signature_matrix_ so we will just remove or refactor this  
