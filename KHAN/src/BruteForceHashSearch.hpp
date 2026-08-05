@@ -5,47 +5,67 @@
 #include "OrionIndex.hpp"
 #include <numeric>
 #include <tuple>
+#include "MaskMatrix.hpp"
+
 
 class BruteForceHashSearch{
     public:
-    vector<vector<uint>> all_hashes_;
+    // vector<vector<uint>> all_hashes_;
     BloomHashFunction shared_hasher_; 
     uint threshold_;
     uint num_hashes_;
     uint num_features_;
+    vector<vector<bool>> all_hashes_;
     OrionIndex GlobalIndex_;
 
-    BruteForceHashSearch(uint threshold, uint num_features, uint dimension, uint num_hashes, uint hash_bits, int debug)
+    BruteForceHashSearch( uint threshold, uint num_features, uint dimension, uint num_hashes, uint hash_bits, int debug, vector<vector<bool>> all_hashes)
     : 
-      threshold_(threshold),
       num_features_(num_features),
       shared_hasher_(dimension, num_hashes, hash_bits, threshold, debug),
       num_hashes_(num_hashes),
-      GlobalIndex_(1, num_hashes_, threshold_)
+      threshold_(num_hashes - threshold),
+      GlobalIndex_(num_hashes_, num_hashes_, threshold_),
+      all_hashes_(all_hashes)
 
 
       
     {
-        cout << "Loading precomputed hashes for Naive Search..." << endl;
-        all_hashes_.resize(num_features_);
+       
+        // cout << "Loading precomputed hashes for Naive Search..." << endl;
+        // all_hashes_.resize(num_features_);
+        cout << "Threshold in Brute Index: " << threshold_ << endl;
+        cout << "num_hashes in Brute Index: " << num_hashes_ << endl;
+
 
         
-        std::ifstream file("/home/adnan/projects/MLGTSaffron/results/all_hashes_2.csv");
-        if (!file.is_open()) {
-            std::cerr << "Failed to open file!" << std::endl;
-            std::exit(1);
-        }
+        // std::ifstream file("/home/adnan/projects/MLGTSaffron/results/all_hashes_2.csv");
+        // if (!file.is_open()) {
+        //     std::cerr << "Failed to open file!" << std::endl;
+        //     std::exit(1);
+        // }
 
-        std::string line;
-        for (uint i = 0; i < num_features_ && std::getline(file, line); i++) {
-            std::stringstream ss(line);
-            std::string value;
+        // std::string line;
+        // for (uint i = 0; i < num_features_ && std::getline(file, line); i++) {
+        //     std::stringstream ss(line);
+        //     std::string value;
 
-            while (std::getline(ss, value, ',')) {
-               all_hashes_[i].push_back(std::stoul(value));
+        //     while (std::getline(ss, value, ',')) {
+        //        all_hashes_[i].push_back(std::stoul(value));
+        //     }
+        // }
+        // cout << "Finished loading hashes for Naive Search." << endl;
+
+        vector<vector<uint>> uint_hashes(num_features_, vector<uint>(num_hashes_));
+        #pragma omp parallel for collapse(2) schedule(static)
+        for(uint i = 0; i < num_features_; i++){
+            for(uint j = 0; j < num_hashes_; j++){
+                uint_hashes[i][j] = 0;
+                if(all_hashes_[i][j])
+                    uint_hashes[i][j] = 1;
+
             }
         }
-        cout << "Finished loading hashes for Naive Search." << endl;
+        
         
         // Items in pool
         vector<uint> items(num_features_);
@@ -53,8 +73,21 @@ class BruteForceHashSearch{
         vector<vector<uint>> all_items;
         all_items.push_back(items);
         cout<< "Building Global Inverted Index for Brute Force Search"<<endl;
-        GlobalIndex_.build(all_hashes_, all_items);
+        GlobalIndex_.build(uint_hashes, all_items);
         cout<<"GlobalIndex Built"<<endl;
+
+        // Mask Matrix
+        // MaskMatrix brute_map(num_features_, num_hashes_, num_hashes_, 1);
+        // for(uint i = 0; i < num_hashes_; i++){
+        //     brute_map.masks_[i][0] = i;
+        // }
+        // cout<< "Building Global Inverted Index for Brute Force Search"<<endl;
+        // GlobalIndex_.build(all_hashes_, brute_map);
+        // cout<<"GlobalIndex Built"<<endl;
+
+
+
+
 
 
     //   num_features_ = all_hashes.size();

@@ -8,3 +8,133 @@ Avg Hash Time:      0.002300 seconds
 Avg Decode Time:    0.065755 seconds
 Avg Test Evaluation Time: 0.074055 seconds
 
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 12.325188 seconds
+Avg Saffron Search: 0.031430 seconds
+Avg Naive Search:   0.002984 seconds
+Avg Precision:      0.0000
+Avg Recall:         0.0000
+Avg Hash Time:      0.002886 seconds
+Avg Decode Time:    0.006266 seconds
+Avg Test Evaluation Time: 0.022216 seconds
+
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 12.318186 seconds
+Avg Saffron Search: 0.031341 seconds
+Avg Naive Search:   0.002759 seconds
+Avg Precision:      0.0000
+Avg Recall:         0.0000
+Avg Hash Time:      0.002666 seconds
+Avg Decode Time:    0.006400 seconds
+Avg Test Evaluation Time: 0.022212 seconds
+
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 11.901236 seconds
+Avg Saffron Search: 0.007696 seconds
+Avg Naive Search:   0.002479 seconds
+Avg Precision:      0.0000
+Avg Recall:         0.0000
+Avg Hash Time:      0.002401 seconds
+Avg Decode Time:    0.000858 seconds
+Avg Test Evaluation Time: 0.004346 seconds
+
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 12.205369 seconds
+Avg Saffron Search: 0.007609 seconds
+Avg Naive Search:   0.002537 seconds
+Avg Precision:      0.0000
+Avg Recall:         0.0000
+Avg Hash Time:      0.002383 seconds
+Avg Decode Time:    0.000810 seconds
+Avg Test Evaluation Time: 0.004331 seconds
+
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 12.272205 seconds
+Avg Saffron Search: 0.007833 seconds
+Avg Naive Search:   0.002947 seconds
+Avg Precision:      0.0000
+Avg Recall:         0.0000
+Avg Hash Time:      0.002635 seconds
+Avg Decode Time:    0.000803 seconds
+Avg Test Evaluation Time: 0.004311 seconds
+
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 12.180336 seconds
+Avg Saffron Search: 0.007840 seconds
+Avg Naive Search:   0.002763 seconds
+Avg Precision:      0.0000
+Avg Recall:         0.0000
+Avg Hash Time:      0.002618 seconds
+Avg Decode Time:    0.000791 seconds
+Avg Test Evaluation Time: 0.004340 seconds
+
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 35.368716 seconds
+Avg Saffron Search: 0.008205 seconds
+Avg Naive Search:   1.828481 seconds
+Avg Precision:      1.0000
+Avg Recall:         1.0000
+Avg Hash Time:      0.002746 seconds
+Avg Decode Time:    0.000823 seconds
+Avg Test Evaluation Time: 0.004522 seconds
+
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 33.671778 seconds
+Avg Saffron Search: 0.031359 seconds
+Avg Naive Search:   1.853212 seconds
+Avg Precision:      0.5000
+Avg Recall:         0.5000
+Avg Hash Time:      0.002391 seconds
+Avg Decode Time:    0.006312 seconds
+Avg Test Evaluation Time: 0.022549 seconds
+
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 33.935683 seconds
+Avg Saffron Search: 0.050808 seconds
+Avg Naive Search:   1.863459 seconds
+Avg Precision:      0.6000
+Avg Recall:         0.6000
+Avg Hash Time:      0.002388 seconds
+Avg Decode Time:    0.025885 seconds
+Avg Test Evaluation Time: 0.022397 seconds
+
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 32.596598 seconds
+Avg Saffron Search: 0.051404 seconds
+Avg Naive Search:   1.789624 seconds
+Avg Precision:      0.6000
+Avg Recall:         0.6000
+Avg Hash Time:      0.002390 seconds
+Avg Decode Time:    0.026717 seconds
+Avg Test Evaluation Time: 0.022160 seconds
+
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 32.716060 seconds
+Avg Saffron Search: 0.051421 seconds
+Avg Naive Search:   1.817111 seconds
+Avg Precision:      1.0000
+Avg Recall:         1.0000
+Avg Hash Time:      0.002378 seconds
+Avg Decode Time:    0.026761 seconds
+Avg Test Evaluation Time: 0.022143 seconds
+
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 32.747114 seconds
+Avg Saffron Search: 0.031194 seconds
+Avg Naive Search:   1.799317 seconds
+Avg Precision:      1.0000
+Avg Recall:         1.0000
+Avg Hash Time:      0.002386 seconds
+Avg Probe Time:    0.006606 seconds
+Avg Verification Time: 0.022090 seconds
+
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 516.726120 seconds
+Avg Saffron Search: 0.128286 seconds
+Avg Naive Search:   27.279241 seconds
+Avg Precision:      1.0000
+Avg Recall:         1.0000
+Avg Hash Time:      0.002378 seconds
+Avg Probe Time:    0.063926 seconds
+Avg Verification Time: 0.061769 seconds
+

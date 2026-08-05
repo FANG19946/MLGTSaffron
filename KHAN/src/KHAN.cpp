@@ -101,27 +101,34 @@ PYBIND11_MODULE(KHAN, m){
          py::arg("cover_fraction") = 0.99,
          py::arg("debug") = 0,
          py::arg("normalize") = true)
+
+    .def_readonly("threshold_", &KHAN::threshold_)
+    .def_readonly("all_hashes_", &KHAN::all_hashes_)
+
     .def("search", &KHAN::search, py::arg("query"))
     .def("__call__", &KHAN::operator(), py::arg("query"));
 
+    
     // Brute Force Search
      py::class_<BruteForceHashSearch>(
      m,
      "BruteForceHashSearch",
      "Brute-force hash search baseline.")
-     .def(py::init<
-               uint,
-               uint,
-               uint,
-               uint,
-               uint,
-               int>(),
-          py::arg("threshold"),
-          py::arg("num_features"),
-          py::arg("dimension"),
-          py::arg("num_hashes"),
-          py::arg("hash_bits"),
-          py::arg("debug") = 0)
+    .def(py::init<
+    uint,
+    uint,
+    uint,
+    uint,
+    uint,
+    int,
+    const vector<vector<bool>>&>(),
+    py::arg("threshold"),
+    py::arg("num_features"),
+    py::arg("dimension"),
+    py::arg("num_hashes"),
+    py::arg("hash_bits"),
+    py::arg("debug") = 0,
+    py::arg("all_hashes"))
      .def("bruteSearch",
           &BruteForceHashSearch::bruteSearch,
           py::arg("query"));

@@ -70,8 +70,12 @@ public:
      * @param h_val The hash value
      */
     
-    inline uint getPoolHashKey(uint hash_index, uint h_val) const {
-        uint key = hash_index + h_val * num_hashes_;
+    inline uint getPoolHashKey(uint hash_index, bool h_val) const {
+       uint x = 0;
+        if(h_val){
+            x = 1;
+       }
+        uint key = hash_index + x * num_hashes_;
         return key;
     }
 
@@ -276,6 +280,8 @@ public:
 
     }
 
+   
+
     inline set<uint> get_matches(const vector<bool> &query_hash, const MaskMatrix &sky_map ){
         
         vector<uint> compressed_hashes;
@@ -383,7 +389,11 @@ public:
         uint postings_traversed = 0;       
         set<uint> all_defectives;
         if (num_hashes_ == 0 ) return {false, all_defectives, postings_traversed};
-        
+
+        // cout << "Threshold in Get Full Matches: " << threshold_ << endl;
+        // cout << "num_hashes in Get Full Matches: " << num_hashes_ << endl;
+
+
                     
         unordered_map<uint, uint> counts;
         uint hash_misses = 0;
@@ -391,7 +401,7 @@ public:
 
 
         for(uint h = 0; h < num_hashes_ ; h++){
-            uint q_h = query_hashes[h];
+            bool q_h = query_hashes[h];
             uint key = getPoolHashKey(h, q_h);
 
             // Checking if query hash can match threshold

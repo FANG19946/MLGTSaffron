@@ -12,15 +12,14 @@
 
 
 /**
- * @brief Multi-Label Group Testing (MLGT) Saffron implementation.
+ * @brief K-Hypercube Hash Approximate Neighbor implementation.
  * 
- * Uses Multi-Label Group Testing principles combined with a Inverted Index OrionIndex.
- * (Bloom Filtering) to identify candidate items in each pool for fast recovery.
+ * Uses binary LSH hashes combined with Random Masks and an Inverted Index
  */
 class KHAN  {
-protected:
+public:
     BoolBloomHashFunction shared_hasher_; 
-    OrionIndex heliosIndex_; // Haven't thought too much of initialization will comeback to this later.
+    OrionIndex heliosIndex_; 
     Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> data_eigen_;
     uint num_hashes_;
     uint hash_bits_;
@@ -39,10 +38,9 @@ protected:
 
 public:
     /**
-     * @brief Initializes the MLGTSaffron index.
+     * @brief Initializes the KHAN index.
      */
-    // To store number of tests
-     uint total_tests_;
+    
 
     KHAN(
         pybind11::array_t<float> data_points_arr,
@@ -50,7 +48,6 @@ public:
         uint num_features,
         uint num_hashes = BLOOM_NUM_HASHES,
         uint hash_bits = BLOOM_HASH_BITS,
-        // uint threshold = BLOOM_THRESHOLD,
         double num_degrees = 10,
         double cover_fraction = 0.99,
         int debug = 0,
@@ -58,7 +55,6 @@ public:
     ) :
         num_hashes_(num_hashes),
         hash_bits_(hash_bits),
-        // threshold_(threshold),
         num_degrees_(num_degrees),
         cover_fraction_(cover_fraction),
         dimension_(data_points_arr.shape(1)),
@@ -70,7 +66,7 @@ public:
 
 
 
-
+        // Set Mask Size
         assert(num_features_ > 0);
         uint L = ceil(log2(num_features));
         if(C_mask_bits < 0){
@@ -112,6 +108,7 @@ public:
         long double required_masks = log((1.0L - cover_fraction_) / binomial(num_hashes_, threshold_))/ log(prob_single_set_not_covered);
         num_masks_ =  static_cast<uint>(std::ceil(required_masks));
         if(debug_){
+            cout<< "Coverage by Single Mask: " << prob_single_set_covered << endl;
             cout<< "Number of Masks Required: " << num_masks_ << endl;
         }
 
@@ -211,8 +208,9 @@ public:
         // Build heliosIndex_
         cout<<"Building OrionIndex"<<endl;
         
+        // POTENTIAL BUG !!
         // uint hash_range = 1u << hash_bits_;
-        heliosIndex_ = OrionIndex(num_masks_, 1, threshold_);
+        heliosIndex_ = OrionIndex(num_masks_, num_hashes_, threshold_);
         // Index uses the extended pooling matrix
         heliosIndex_.build(all_hashes_, sky_map_);
         cout<<"OrionIndex Built"<<endl;

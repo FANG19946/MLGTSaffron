@@ -126,12 +126,13 @@ def test_saffron(
             debug=verbose,
         ) # type: ignore
         brute_index = BruteForceHashSearch(
-            threshold,
+            saffron_index.threshold_,
             dataset.shape[0],
             dataset.shape[1],
             num_hashes,
             hash_bits, 
-            verbose
+            verbose,
+            saffron_index.all_hashes_
         )
     else:
         raise ValueError(f"Unknown algorithm: {algo_name}")
@@ -207,14 +208,23 @@ def test_saffron(
         true_positives: int = len(retrieved_set.intersection(true_set))
         precision: float = true_positives / len(retrieved_set) if retrieved_set else 0.0
         recall: float = true_positives / len(true_set) if true_set else 0.0
+        if not retrieved_set and not true_set:
+            precision = 1.0
+            recall = 1.0
+
+        false_positives = sorted(retrieved_set - true_set)
+        false_negatives = sorted(true_set - retrieved_set)
 
         if (verbose > 0):
             print(f"Query {qidx + 1}/{num_queries}:")
-            print(f"  Saffron retrieved indices: {retrieved_indices}")
+            print(f"  False positives ({len(false_positives)}): {false_positives}")
+            print(f"  False negatives ({len(false_negatives)}): {false_negatives}")
+            # print(f"  Saffron retrieved indices: {retrieved_indices}")
             # print(f"    Dot products: {distances[retrieved_indices].tolist()}")
-            print(f"  True nearest indices: {true_indices.tolist()}")
+            # print(f"  True nearest indices: {list(true_indices)}")
             # print(f"    Dot products: {distances[true_indices].tolist()}")
             print(f"  Precision: {precision:.4f}, Recall: {recall:.4f}")
+            
             # print(f"  Saffron time: {saffron_time:.6f} s, Naive time: {naive_time:.6f} s")
         
         # Aggregate results
@@ -395,8 +405,8 @@ if __name__ == "__main__":
                     log(f"Avg Precision:      {avg_precision:.4f}")
                     log(f"Avg Recall:         {avg_recall:.4f}")
                     log(f"Avg Hash Time:      {avg_hash_time:.6f} seconds")
-                    log(f"Avg Decode Time:    {avg_probe_time:.6f} seconds")
-                    log(f"Avg Test Evaluation Time: {avg_verification_time:.6f} seconds")
+                    log(f"Avg Probe Time:    {avg_probe_time:.6f} seconds")
+                    log(f"Avg Verification Time: {avg_verification_time:.6f} seconds")
                     log("")
 
 
