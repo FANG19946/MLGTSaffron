@@ -52,7 +52,7 @@ def plot_saffron_search_times(
 
     print(f"Saved plot to {filename}")
 
-def save_saffron_search_times_csv(
+def save_KHAN_search_times_csv(
     KHAN_times: List[float],
     naive_times: List[float],
     hash_times: List[float],
@@ -74,15 +74,15 @@ def save_saffron_search_times_csv(
         writer = csv.writer(f)
         writer.writerow(["Query", "KHAN Time", "Naive Times", "Hash Time", "Probe Time", "Verification Time"])
 
-        for i, (s, n, h, d, t) in enumerate(zip(KHAN_times, naive_times, hash_times, probe_times, verification_times ), start=1):
-            writer.writerow([i, s, n, h, d, t])
+        for i, (k, n, h, p, v) in enumerate(zip(KHAN_times, naive_times, hash_times, probe_times, verification_times ), start=1):
+            writer.writerow([i, k, n, h, p, v])
 
     print(f"Saved CSV to {filename}")
 
 
 
 
-def test_saffron(
+def test_KHAN(
         dataset: ndarray,
         query_set: ndarray,
         num_neighbors: int,
@@ -94,7 +94,7 @@ def test_saffron(
 ) -> Tuple[float, float, float, float, float, float, float, float]:
     #region description
     """
-    Test the Saffron implementation on a given dataset and query set.
+    Test the KHAN implementation on a given dataset and query set.
 
     Parameters:
     - dataset: ndarray of shape (num_items, num_features)
@@ -107,17 +107,21 @@ def test_saffron(
 
     Returns:
     - Indexing time (for the dataset)
-    - Average search time per query
+    - Average search time per query using KHAN
     - Average naive search time per query
     - Average precision per query
     - Average recall per query
+    - Average Hashing times per query
+    - Average Probing times per query
+    - Average Verification times per query
+
     """
     # endregion
     
     idx_start = time.time()
     
     if algo_name == "KHAN":
-        saffron_index = KHAN(
+        KHAN_index = KHAN(
             dataset,
             num_neighbors,
             dataset.shape[0],
@@ -126,13 +130,13 @@ def test_saffron(
             debug=verbose,
         ) # type: ignore
         brute_index = BruteForceHashSearch(
-            saffron_index.threshold_,
+            KHAN_index.threshold_,
             dataset.shape[0],
             dataset.shape[1],
             num_hashes,
             hash_bits, 
             verbose,
-            saffron_index.all_hashes_
+            KHAN_index.all_hashes_
         )
     else:
         raise ValueError(f"Unknown algorithm: {algo_name}")
@@ -147,7 +151,7 @@ def test_saffron(
     total_verification_time: float = 0.0
     
     num_queries: int = query_set.shape[0]
-    # List of Saffron and Search times
+    # List of KHAN and Search times
     KHAN_times: List[float] = []
     hash_times: List[float] = []
     probe_times: List[float] = []
@@ -164,15 +168,14 @@ def test_saffron(
     for qidx in tqdm(range(num_queries), desc="Testing queries"):
         query: ndarray = query_set[qidx]
         
-        # Saffron search
+        # KHAN search
         start_time: float = time.time()
-        # retrieved_indices: List[int] = saffron_index.search(query) # type: ignore
-        # Updating saffron search with stats
-        result = saffron_index.search(query)
-        # result = [0]
+        # retrieved_indices: List[int] = KHAN_index.search(query) 
+        result = KHAN_index.search(query)
+        
 
 
-        # Had to Add this to recieve hash and decode time of MLGTSaffron because its not supported for other methods
+        
         if isinstance(result, tuple):
             retrieved_indices, hashing_time, probing_time, verification_time = result
         else:
@@ -219,13 +222,13 @@ def test_saffron(
             print(f"Query {qidx + 1}/{num_queries}:")
             print(f"  False positives ({len(false_positives)}): {false_positives}")
             print(f"  False negatives ({len(false_negatives)}): {false_negatives}")
-            # print(f"  Saffron retrieved indices: {retrieved_indices}")
+            # print(f"  KHAN retrieved indices: {retrieved_indices}")
             # print(f"    Dot products: {distances[retrieved_indices].tolist()}")
             # print(f"  True nearest indices: {list(true_indices)}")
             # print(f"    Dot products: {distances[true_indices].tolist()}")
             print(f"  Precision: {precision:.4f}, Recall: {recall:.4f}")
             
-            # print(f"  Saffron time: {saffron_time:.6f} s, Naive time: {naive_time:.6f} s")
+            # print(f"  KHAN time: {KHAN_time:.6f} s, Naive time: {naive_time:.6f} s")
         
         # Aggregate results
         total_KHAN_time += KHAN_time
@@ -251,7 +254,7 @@ def test_saffron(
     # Plot Histogram 
     # plot_saffron_search_times(saffron_times, CURRENT_DATASET, ALGO_NAME)
     # Save CSV
-    save_saffron_search_times_csv( KHAN_times, naive_times, hash_times, probe_times, verification_times, CURRENT_DATASET, ALGO_NAME)
+    save_KHAN_search_times_csv( KHAN_times, naive_times, hash_times, probe_times, verification_times, CURRENT_DATASET, ALGO_NAME)
     return (
     idx_time,
     avg_KHAN_time,
@@ -266,7 +269,7 @@ def test_saffron(
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser("Test Saffron implementation")
+    parser = ArgumentParser("Test KHAN implementation")
     parser.add_argument(
         "--data-path",
         "-p",
@@ -371,7 +374,7 @@ if __name__ == "__main__":
                 print(f"\n>>> Running: Dataset={dname}, Algo={algo}, k={args.num_neighbors}, hashes={nh}, bits={hb}, threshold={th}")
                 
 
-                idx_time, avg_KHAN_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_probe_time, avg_verification_time = test_saffron(
+                idx_time, avg_KHAN_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_probe_time, avg_verification_time = test_KHAN(
                     full_dataset, 
                     full_query_set, 
                     args.num_neighbors,
@@ -384,7 +387,7 @@ if __name__ == "__main__":
 
                 # print(f"--- Results for {algo.upper()} on {dname.upper()} ---")
                 # print(f"Indexing Time: {idx_time:.6f} seconds")
-                # print(f"Avg Saffron Search: {avg_saffron_time:.6f} seconds")
+                # print(f"Avg KHAN Search: {avg_KHAN_time:.6f} seconds")
                 # print(f"Avg Naive Search:   {avg_naive_time:.6f} seconds")
                 # print(f"Avg Precision:      {avg_precision:.4f}")
                 # print(f"Avg Recall:         {avg_recall:.4f}")

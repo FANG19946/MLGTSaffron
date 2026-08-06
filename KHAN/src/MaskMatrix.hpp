@@ -20,25 +20,16 @@ public:
       num_masks_(0)
 {}
 
-
+    /**
+    * @brief Generate Mask Matrix that initializes vector<vector<uint>> masks_, which stores the position of the active bits for the mask_ids. 
+    */
     MaskMatrix(uint num_features, uint num_hashes, uint num_masks, uint mask_size)
     :
         num_features_(num_features),
         num_hashes_(num_hashes),
         num_masks_(num_masks),
         mask_size_(mask_size)
-    {
-
-        // assert(num_features_ > 0);
-        // uint L = ceil(log2(num_features));
-        // if(C_mask_bits < 0){
-        //     int x = -L;
-        //     assert(C_mask_bits > x);
-        // }
-        // L = L + C_mask_bits;
-        // mask_size_ = L;
-
-        
+    {      
 
         vector<vector<bool>> all_masks;
         all_masks.resize(num_masks_, vector<bool> (num_hashes_, false ));
@@ -80,7 +71,20 @@ public:
 
     }
 
+    /**
+     * @brief Computes the compressed hash value for a single mask.
+     * 
+     * @param binary_hash vector<bool> Contains the Binary Hash.
+     * @param mask vector<uint> Contains the positions of the active bits in a mask.
+     *
+     * An Important Note: The compressed hash value is packed in a uint32. If the mask_size_ exceeds 32 bits this will cause an
+     * overflow and produce possibly corrupted hash. An assert has been added for safeguarding against this.
+     *
+     * @return Compressed Hash Value after applying the mask and retaining only the mask_size_ bits. The bits are then packed inside a uint32.
+     */
     inline uint getCompressedHash(const vector<bool> &binary_hash, const vector<uint> &mask) const {
+        // To prevent overflow of compressed hash value;
+        assert(mask_size_ <= 32 );
 
         uint hash_val = 0;        
         for(uint mask_bit = 0; mask_bit < mask.size(); mask_bit++){
@@ -90,7 +94,19 @@ public:
         return hash_val;
     }
 
+    /**
+     * @brief Computes the compressed hash value for a all masks.
+     * 
+     * @param binary_hash vector<bool> Contains the Binary Hash.
+     *
+     * An Important Note: The compressed hash value is packed in a uint32. If the mask_size_ exceeds 32 bits this will cause an
+     * overflow and produce possibly corrupted hash. An assert has been added for safeguarding against this.
+     *
+     * @return compressed_hashes vector<uint> Compressed Hash Values after applying the masks and retaining only the mask_size_ bits. The bits are then packed inside a uint32.
+     */
     inline vector<uint> getCompressedHash(const vector<bool> &binary_hash) const {
+
+        assert(mask_size_ <= 32 );
         vector<uint> compressed_hashes(num_masks_);
         for(uint mask_id = 0; mask_id < num_masks_; mask_id++){
             compressed_hashes[mask_id] = getCompressedHash(binary_hash, masks_[mask_id]);        

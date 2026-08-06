@@ -14,7 +14,7 @@
 /**
  * @brief K-Hypercube Hash Approximate Neighbor implementation.
  * 
- * Uses binary LSH hashes combined with Random Masks and an Inverted Index
+ * Uses binary LSH hashes combined with Random Masks and an Inverted Index.
  */
 class KHAN  {
 public:
@@ -208,17 +208,13 @@ public:
         // Build heliosIndex_
         cout<<"Building OrionIndex"<<endl;
         
-        // POTENTIAL BUG !!
-        // uint hash_range = 1u << hash_bits_;
+        
         heliosIndex_ = OrionIndex(num_masks_, num_hashes_, threshold_);
-        // Index uses the extended pooling matrix
+        // Index uses the mask matrix
         heliosIndex_.build(all_hashes_, sky_map_);
         cout<<"OrionIndex Built"<<endl;
                 
 
-
-        // Adding number of tests logging
-        // total_tests_ = num_pools_ * signature_length_;
         if (debug_ > 0) {
             cout << "[KHAN] Number of masks = "
                 << num_masks_
@@ -242,55 +238,14 @@ protected:
      * @param query_vec Normalized query vector (Eigen).
      * @return vector<vector<bool>> The num_pools x signature_bits residual matrix, set<uint> identified_defectives contains the set of items that are defectives, double hashing_time Time taken to hash th query vector, double test_evaluation_time time taken to evaluate all the tests parallely, uint total_postings_traversed the total number of postings traversed for all pools.
      */
-    // Changed getResiduals to return tuple {residuals, identified_defectives, hashing_time, total_postings_traversed}
-    // inline std::tuple<vector<vector<bool>>, set<uint>,  double, double, uint> getResiduals(const Eigen::VectorXf& query_vec) const {
 
-    //     // Hashing Time
-    //     auto t_hash_start = std::chrono::high_resolution_clock::now();
-    //     vector<uint> query_hashes = shared_hasher_(query_vec);
-    //     auto t_hash_end = std::chrono::high_resolution_clock::now();
-    //     double hashing_time = std::chrono::duration<double>(t_hash_end - t_hash_start).count();
-        
-        
-    //     vector<vector<bool>> residuals(num_pools_, vector<bool>(signature_length_, true));
-    //     set<uint> identified_defectives;
-
-        
-    //     auto t_test_evaluation_start = std::chrono::high_resolution_clock::now();
-    //     uint total_postings_traversed = 0;
-    //     #pragma omp parallel for collapse(2)
-    //     for(uint pool_id = 0; pool_id < num_pools_; pool_id++){
-    //         for(uint j = 0; j < signature_length_; j++){
-    //             uint extended_base = pool_id * signature_length_;
-    //             uint extended_pool_id = extended_base + j;
-    //             auto [pool_status, global_id, postings_traversed] = heliosIndex_.get_matches(query_hashes, extended_pool_id);
-    //             residuals[pool_id][j] = pool_status;
-
-    //             #pragma omp critical
-    //             {
-    //                 total_postings_traversed += postings_traversed;
-    //                 if(pool_status){
-    //                     identified_defectives.insert(global_id);                    
-    //                 }
-    //             }
-                
-    //         }
-
-    //     }
-    //     auto t_test_evaluation_end = std::chrono::high_resolution_clock::now();
-    //     double test_evaluation_time = std::chrono::duration<double>(t_test_evaluation_end - t_test_evaluation_start).count();
-
-
-    //     return {residuals, identified_defectives, hashing_time, test_evaluation_time, total_postings_traversed};
-    // }
 
 public:
     /**
-     * @brief Performs          
-      a nearest neighbor search.
+     * @brief Performs a nearest neighbor search.
      * 
      * @param query_arr The query vector (numpy array).
-     * @return vector<uint> Top K item indices.
+     * @return tuple[ vector<uint>, double, double, double ] The item_ids of the defective items, hashing_time, probing_time, verification_time.
      */
     // Changed search to return (topK, hashing_time, decoding_time, total_postings_traversed)
     inline std::tuple<std::vector<uint>, double, double, double> search(pybind11::array_t<float> query_arr) {
@@ -306,20 +261,16 @@ public:
         vector<bool> query_hash = shared_hasher_(query);
         auto t_hash_end = std::chrono::high_resolution_clock::now();
         double hashing_time = std::chrono::duration<double>(t_hash_end - t_hash_start).count();
-
-        // Updated return of getResiduals()
-        // auto [residuals, identified_defectives, hashing_time, test_evaluation_time, total_postings_traversed] = getResiduals(query);
-        
-        
+            
         // Probing Time
         auto t_probe_start = std::chrono::high_resolution_clock::now();
-        set<uint> identified_neighbors = heliosIndex_.get_matches(query_hash, sky_map_);
+        set<uint> candidate_neighbors = heliosIndex_.get_matches(query_hash, sky_map_);
         auto t_probe_end = std::chrono::high_resolution_clock::now();
         double probing_time = std::chrono::duration<double>(t_probe_end - t_probe_start).count();
 
         // Verification Time
         auto t_verification_start = std::chrono::high_resolution_clock::now();
-        set<uint> verified_neighbors = verify_neighbors(query_hash, identified_neighbors);
+        set<uint> verified_neighbors = verify_neighbors(query_hash, candidate_neighbors);
         auto t_verification_end = std::chrono::high_resolution_clock::now();
         double verification_time = std::chrono::duration<double>(t_verification_end - t_verification_start).count();
 
@@ -329,11 +280,17 @@ public:
         return { v, hashing_time, probing_time, verification_time };
     }
 
-
-    inline set<uint> verify_neighbors(const vector<bool> &query_hash,const set<uint> &identified_neighbors){
+    /**
+     * @brief Verifies identified items and discards false positives.
+     * 
+     * @param query_hash vector<bool> The binary hashes of the query vector.
+     * @param candidate_neighbors set<uint> The item_ids of the candidate_neighbors.
+     * @return tuple[ vector<uint>, double, double, double ] The item_ids of the defective items, hashing_time, probing_time, verification_time.
+     */
+    inline set<uint> verify_neighbors(const vector<bool> &query_hash,const set<uint> &candidate_neighbors){
         set<uint> verified_neighbors;
 
-        for(const uint &item_id : identified_neighbors ){
+        for(const uint &item_id : candidate_neighbors ){
 
             const auto& item_hash = all_hashes_[item_id];
             assert(query_hash.size() == item_hash.size());
@@ -375,10 +332,7 @@ public:
             term *= static_cast<long double>(n - k) / (k + 1);
             sum += term;
         }
-
         return sum;
-
-
      }
 
 

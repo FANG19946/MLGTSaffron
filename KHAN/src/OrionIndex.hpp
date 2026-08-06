@@ -30,15 +30,16 @@ struct HashNode
  * 
  * Hash Function range is 0 to R
  * We have L such hash functions
- * The inverted index will store an array of size R which will have the hash_vals and a pointer to an flattened hashmap
+ * The inverted index will store an array of size num_masks_ which will have the mask_id and a pointer to an flattened hashmap
  * The hashmap key = hash_function + h_val * num_hashes_
- * How to access the elements: hash_buckets_[pool_id].postings[key]
+ * How to access the elements: hash_buckets_[pool_id].postings[key] will return a PostingRange which 
+ * contains the start_index and item_count which points to the sharded doc_index_, the corresponding postings can be obtained by
+ * doc_index_[shard][start_idx] till doc_index_[shard][start_idx + item_count - 1].
  * 
  */
 class OrionIndex {
 public:
     vector<HashNode> hash_buckets_; 
-    uint hash_range_;
     uint num_hashes_;
     uint threshold_;
     uint num_masks_;
@@ -49,7 +50,7 @@ public:
     /**
      * @brief Empty constructor for OrionIndex.
      */
-    OrionIndex() : hash_range_(0), num_hashes_(0), threshold_(0), num_masks_(0), num_shards_(32) {}
+    OrionIndex() :  num_hashes_(0), threshold_(0), num_masks_(0), num_shards_(32) {}
     
     /**
      * @brief Construct a new Orion Index with specified parameters.
@@ -105,9 +106,6 @@ public:
             doc_index_[shard].reserve(postings_per_shard);
         }
 
-
-        // doc_index_.reserve(POOLS_PER_ITEM * all_hashes.size() * num_hashes_ * L * 3);
-
         struct Entry {
             uint32_t key;
             uint32_t item_id;
@@ -147,8 +145,6 @@ public:
                 
                 for(int i = (int)entries.size() - 1 ; i >= 0; ){
                     uint key = entries[i].key;
-                    // int j =  i - 1;
-                    // uint shard = pool_id % num_shards_;
                     uint start_index = doc_index_[shard].size();
                     uint item_count = 1;
                     PostingRange info;
@@ -175,6 +171,12 @@ public:
         }
     }
 
+    /**
+     * @brief Builds the inverted index from given item binary hashes and masks.
+     *  
+     * @param all_hashes A 2D vector where all_hashes[i] contains the binary hashes for item i.
+     * @param sky_map A MaskMatrix which contains all the masks for the KHAN. 
+     */
     void build(const vector<vector<bool>>& all_hashes, const MaskMatrix &sky_map ){
 
         hash_buckets_.clear();
@@ -200,12 +202,6 @@ public:
         #pragma omp parallel for collapse(2) schedule(static)
         for(uint mask_id = 0; mask_id < num_masks_; mask_id++){
             for(uint item_id = 0; item_id < num_features; item_id++){
-                // uint hash_val = 0;
-                // for(uint mask_bit = 0; mask_bit < sky_map.mask_size_; mask_bit++){
-                //     uint pos = sky_map.masks_[mask_id][mask_bit];
-                //     hash_val += all_hashes[item_id][pos]*pow(2,sky_map.mask_size_ - 1 - mask_bit);
-                // }
-
                 mask_hashes[mask_id][item_id] = sky_map.getCompressedHash(all_hashes[item_id], sky_map.masks_[mask_id]);
                 if(item_id == num_features - 1)
                 {
@@ -270,22 +266,25 @@ public:
                 }
                 uint64_t done = completed_masks.fetch_add(1) + 1;
                 progress.update(done);
-                
-                
+                                
             }
         }
-
-
-
-
     }
 
-   
+   /**
+     * @brief Query Binary Hash is masked using the different masks of MaskMatrix sky_map to get compressed hashes for each
+     * mask, the Inverted Index for that mask is then queried with the compressed hash value and the candidate neighbor 
+     * item_ids are returned.
+     *
+     * @param query_hash vector<bool> The pre-computed binary hashes of the query vector.
+     * @param sky_map MaskMatrix that holds all the binary masks.
+     * @return set<uint> That contains item_ids of the possible candidate items.
+     */
 
     inline set<uint> get_matches(const vector<bool> &query_hash, const MaskMatrix &sky_map ){
         
         vector<uint> compressed_hashes;
-        set<uint> matches;
+        set<uint> candidates;
         
         compressed_hashes.resize(num_masks_);
         compressed_hashes = sky_map.getCompressedHash(query_hash);
@@ -305,11 +304,11 @@ public:
 
             for( uint i = start_index; i < start_index + item_count; i++  ){
                 uint global_id = doc_index_[shard][i];
-                matches.insert(global_id);
+                candidates.insert(global_id);
                 
             }
         }
-        return matches;
+        return candidates;
 
     }
 
@@ -389,11 +388,6 @@ public:
         uint postings_traversed = 0;       
         set<uint> all_defectives;
         if (num_hashes_ == 0 ) return {false, all_defectives, postings_traversed};
-
-        // cout << "Threshold in Get Full Matches: " << threshold_ << endl;
-        // cout << "num_hashes in Get Full Matches: " << num_hashes_ << endl;
-
-
                     
         unordered_map<uint, uint> counts;
         uint hash_misses = 0;

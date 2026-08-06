@@ -31,29 +31,9 @@ class BruteForceHashSearch{
       
     {
        
-        // cout << "Loading precomputed hashes for Naive Search..." << endl;
-        // all_hashes_.resize(num_features_);
+        
         cout << "Threshold in Brute Index: " << threshold_ << endl;
         cout << "num_hashes in Brute Index: " << num_hashes_ << endl;
-
-
-        
-        // std::ifstream file("/home/adnan/projects/MLGTSaffron/results/all_hashes_2.csv");
-        // if (!file.is_open()) {
-        //     std::cerr << "Failed to open file!" << std::endl;
-        //     std::exit(1);
-        // }
-
-        // std::string line;
-        // for (uint i = 0; i < num_features_ && std::getline(file, line); i++) {
-        //     std::stringstream ss(line);
-        //     std::string value;
-
-        //     while (std::getline(ss, value, ',')) {
-        //        all_hashes_[i].push_back(std::stoul(value));
-        //     }
-        // }
-        // cout << "Finished loading hashes for Naive Search." << endl;
 
         vector<vector<uint>> uint_hashes(num_features_, vector<uint>(num_hashes_));
         #pragma omp parallel for collapse(2) schedule(static)
@@ -76,28 +56,19 @@ class BruteForceHashSearch{
         GlobalIndex_.build(uint_hashes, all_items);
         cout<<"GlobalIndex Built"<<endl;
 
-        // Mask Matrix
-        // MaskMatrix brute_map(num_features_, num_hashes_, num_hashes_, 1);
-        // for(uint i = 0; i < num_hashes_; i++){
-        //     brute_map.masks_[i][0] = i;
-        // }
-        // cout<< "Building Global Inverted Index for Brute Force Search"<<endl;
-        // GlobalIndex_.build(all_hashes_, brute_map);
-        // cout<<"GlobalIndex Built"<<endl;
-
-
-
-
-
-
-    //   num_features_ = all_hashes.size();
-    //   num_hashes_ =all_hashes_.empty() ? 0 :all_hashes_[0].size();
         all_hashes_.clear();
         all_hashes_.shrink_to_fit();
 
 
     }
 
+
+    /**
+     * @brief Performs Brute Force Search using an Inverted Index for each bit.
+     * 
+     * @param query_arr The query vector (numpy array).
+     * @return tuple of [ set<uint>, uint, double] which is the true defective items, postings_traversed, naive_search_time.
+     */
     std::tuple<set<uint>, uint, double> bruteSearch(pybind11::array_t<float> query_arr){
 
         auto search_start = std::chrono::high_resolution_clock::now();
@@ -117,19 +88,6 @@ class BruteForceHashSearch{
 
         
         auto [status, bruteforce_defectives, postings_traversed] = GlobalIndex_.get_full_matches(query_hashes, 0);
-
-        // for(uint item_id = 0; item_id < num_features_; item_id++ ){
-        //     for(uint h = 0; h < num_hashes_; h++){
-        //         if(query_hashes[h] == all_hashes_[item_id][h]){
-        //             counts[item_id]++;
-        //         }
-        //     }
-        // }
-        // for( uint item_id = 0; item_id < num_features_; item_id++){
-        //     if(counts[item_id] >= threshold_){
-        //         bruteforce_defectives.insert(item_id);
-        //     }
-        // }
         auto search_end = std::chrono::high_resolution_clock::now();
         double naive_search_time = std::chrono::duration<double>(search_end - search_start).count();
 

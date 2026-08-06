@@ -9,10 +9,10 @@ const uint BOOL_BLOOM_NUM_HASHES = 512;
 const uint BOOL_BLOOM_THRESHOLD = 41; 
 
 /**
- * @brief A Bloom Filter-inspired hash function that generates multiple compound hash values.
+ * @brief A Bloom Filter-inspired hash function that generates multiple binary hash values.
  * 
  * Uses random projections to generate multiple independent hash values for a given vector.
- * Each hash value is composed of multiple bits, where each bit is determined by the sign
+ * Each hash value is composed of a bits, where each bit is determined by the sign
  * of a random projection.
  */
 class BoolBloomHashFunction {
@@ -59,10 +59,10 @@ public:
     }
 
     /**
-     * @brief Computes multiple compound hash values for a given vector.
+     * @brief Computes multiple binary hash values for a given vector.
      * 
      * @param point The input vector as a float vector.
-     * @return vector<uint> A vector of hash values (one per compound hash).
+     * @return vector<bool> A vector of hash values .
      */
     inline vector<bool> operator()(const vector<float>& point) const {
         assert(point.size() == dimension_ && "Point dimension mismatch");
@@ -71,10 +71,10 @@ public:
     }
 
     /**
-     * @brief Computes multiple compound hash values for an Eigen vector.
+     * @brief Computes multiple binary hash values for an Eigen vector.
      * 
      * Projects the input vector onto the internal projection matrix and 
-     * generates multiple hash values.
+     * generates multiple binary hash values.
      * 
      * @param q The input Eigen vector.
      * @return vector<bool> A vector of boolean hash values.
@@ -99,9 +99,9 @@ public:
     }
 
     /**
-     * @brief Computes multiple hash values for a given point (callable interface, numpy).
+     * @brief Computes multiple binary hash values for a given point (callable interface, numpy).
      * @param point_arr A 1D numpy array representing the point.
-     * @return vector<uint> A vector of hash values (one per compound hash).
+     * @return vector<bool> A vector of binary hash values .
      */
     inline vector<bool> operator()(const pybind11::array_t<float> &point_arr) const {
         assert(point_arr.ndim() == 1 && "Point must be 1D");

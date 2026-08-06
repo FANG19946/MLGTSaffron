@@ -138,3 +138,13 @@ Avg Hash Time:      0.002378 seconds
 Avg Probe Time:    0.063926 seconds
 Avg Verification Time: 0.061769 seconds
 
+--- Results for KHAN on IMAGENET ---
+Indexing Time: 32.304423 seconds
+Avg Saffron Search: 0.033062 seconds
+Avg Naive Search:   1.916254 seconds
+Avg Precision:      1.0000
+Avg Recall:         1.0000
+Avg Hash Time:      0.002580 seconds
+Avg Probe Time:    0.006214 seconds
+Avg Verification Time: 0.024163 seconds
+
