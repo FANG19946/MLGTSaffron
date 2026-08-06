@@ -58,10 +58,11 @@ def save_KHAN_search_times_csv(
     hash_times: List[float],
     probe_times: List[float],
     verification_times: List[float],
+    false_positive_rates: List[float],
     dataset_name: str,
     algo_name: str,
 ):
-    """Save Saffron timings to a CSV."""
+    """Save KHAN timings to a CSV."""
 
     os.makedirs("results", exist_ok=True)
 
@@ -72,10 +73,10 @@ def save_KHAN_search_times_csv(
 
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Query", "KHAN Time", "Naive Times", "Hash Time", "Probe Time", "Verification Time"])
+        writer.writerow(["Query", "KHAN Time", "Naive Times", "Hash Time", "Probe Time", "Verification Time", "False Positive Rate"])
 
-        for i, (k, n, h, p, v) in enumerate(zip(KHAN_times, naive_times, hash_times, probe_times, verification_times ), start=1):
-            writer.writerow([i, k, n, h, p, v])
+        for i, (k, n, h, p, v, fp) in enumerate(zip(KHAN_times, naive_times, hash_times, probe_times, verification_times, false_positive_rates ), start=1):
+            writer.writerow([i, k, n, h, p, v, fp])
 
     print(f"Saved CSV to {filename}")
 
@@ -145,6 +146,7 @@ def test_KHAN(
     # region timer initializations
     idx_time: float = time.time() - idx_start
     total_KHAN_time: float = 0.0
+    total_false_positive_rate = 0.0
     total_naive_time: float = 0.0
     total_precision: float = 0.0
     total_recall: float = 0.0
@@ -158,6 +160,8 @@ def test_KHAN(
     probe_times: List[float] = []
     verification_times: List[float] = []
     naive_times: List[float] = []
+    false_positive_rates: List[float] = []
+
 
     # endregion
     
@@ -178,12 +182,13 @@ def test_KHAN(
 
         
         if isinstance(result, tuple):
-            retrieved_indices, hashing_time, probing_time, verification_time = result
+            retrieved_indices, hashing_time, probing_time, verification_time, false_positive_rate = result
         else:
             retrieved_indices = result
             hashing_time = 0.0
             probing_time = 0.0
             verification_time = 0.0
+            false_positive_rate = 0.0
        
 
 
@@ -194,6 +199,7 @@ def test_KHAN(
         hash_times.append(hashing_time)
         probe_times.append(probing_time)
         verification_times.append(verification_time)
+        false_positive_rates.append(false_positive_rate)
         
         
 
@@ -241,6 +247,7 @@ def test_KHAN(
         total_hash_time += hashing_time
         total_probe_time += probing_time
         total_verification_time += verification_time
+        total_false_positive_rate += false_positive_rate
 
     
     avg_KHAN_time: float = total_KHAN_time / num_queries
@@ -252,10 +259,12 @@ def test_KHAN(
     avg_hash_time: float = total_hash_time / num_queries
     avg_probe_time: float = total_probe_time / num_queries
     avg_verification_time: float = total_verification_time / num_queries
+    avg_false_positive_rate: float = total_false_positive_rate / num_queries
+
     # Plot Histogram 
     # plot_saffron_search_times(saffron_times, CURRENT_DATASET, ALGO_NAME)
     # Save CSV
-    save_KHAN_search_times_csv( KHAN_times, naive_times, hash_times, probe_times, verification_times, CURRENT_DATASET, ALGO_NAME)
+    save_KHAN_search_times_csv( KHAN_times, naive_times, hash_times, probe_times, verification_times, false_positive_rates, CURRENT_DATASET, ALGO_NAME)
     return (
     idx_time,
     avg_KHAN_time,
@@ -265,6 +274,7 @@ def test_KHAN(
     avg_hash_time,
     avg_probe_time,
     avg_verification_time,
+    avg_false_positive_rate
     )
 
 
@@ -375,7 +385,7 @@ if __name__ == "__main__":
                 print(f"\n>>> Running: Dataset={dname}, Algo={algo}, k={args.num_neighbors}, hashes={nh}, bits={hb}, threshold={th}")
                 
 
-                idx_time, avg_KHAN_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_probe_time, avg_verification_time = test_KHAN(
+                idx_time, avg_KHAN_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_probe_time, avg_verification_time, avg_false_positive_rate = test_KHAN(
                     full_dataset, 
                     full_query_set, 
                     args.num_neighbors,
@@ -411,6 +421,7 @@ if __name__ == "__main__":
                     log(f"Avg Hash Time:      {avg_hash_time:.6f} seconds")
                     log(f"Avg Probe Time:    {avg_probe_time:.6f} seconds")
                     log(f"Avg Verification Time: {avg_verification_time:.6f} seconds")
+                    log(f"Avg False Positive Rate: {avg_false_positive_rate:.6f} ")
                     log("")
 
 

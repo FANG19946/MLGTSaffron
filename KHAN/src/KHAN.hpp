@@ -10,6 +10,7 @@
 #include "OrionIndex.hpp"
 #include <boost/math/distributions/normal.hpp>
 #include <bit>
+#include <numbers>
 
 /**
  * @brief K-Hypercube Hash Approximate Neighbor implementation.
@@ -261,7 +262,7 @@ public:
      * @return tuple[ vector<uint>, double, double, double ] The item_ids of the defective items, hashing_time, probing_time, verification_time.
      */
     // Changed search to return (topK, hashing_time, decoding_time, total_postings_traversed)
-    inline std::tuple<std::vector<uint>, double, double, double> search(pybind11::array_t<float> query_arr) {
+    inline std::tuple<std::vector<uint>, double, double, double, double> search(pybind11::array_t<float> query_arr) {
         Eigen::Map<const Eigen::VectorXf> q_raw(query_arr.data(), dimension_);
         Eigen::VectorXf query = q_raw;
         if (normalize_) {
@@ -283,14 +284,14 @@ public:
 
         // Verification Time
         auto t_verification_start = std::chrono::high_resolution_clock::now();
-        vector<uint> verified_neighbors = verify_neighbors(query_hash, candidate_neighbors, num_hashes_%64);
+        auto [verified_neighbors, false_positive_rate] = verify_neighbors(query, candidate_neighbors);
         auto t_verification_end = std::chrono::high_resolution_clock::now();
         double verification_time = std::chrono::duration<double>(t_verification_end - t_verification_start).count();
 
         
         
 
-        return { verified_neighbors, hashing_time, probing_time, verification_time };
+        return { verified_neighbors, hashing_time, probing_time, verification_time, false_positive_rate };
     }
 
     /**
@@ -322,11 +323,12 @@ public:
         return verified_neighbors;
     }
 
-    inline vector<uint> verify_neighbors(const vector<bool> &query_hash,const vector<uint> &candidate_neighbors, uint excess){
+    inline std::tuple<vector<uint>, double> verify_neighbors(const vector<bool> &query_hash,const vector<uint> &candidate_neighbors, uint excess){
         vector<uint> verified_neighbors;
         verified_neighbors.reserve(candidate_neighbors.size());
         vector<uint64_t> packed_query_hash = pack_hash(query_hash);
         
+        double false_positives = 0.0;
         for(const uint &item_id : candidate_neighbors ){
             uint hamming_distance = 0;
             
@@ -338,11 +340,44 @@ public:
             if(hamming_distance <= threshold_ + excess){
                 verified_neighbors.push_back(item_id);
             }
+            else
+                false_positives += 1.0;
 
         }
+        double false_positive_rate = 0.0;
+        if (!candidate_neighbors.empty())
+            false_positive_rate = false_positives / candidate_neighbors.size();
+        
 
-        return verified_neighbors;
+        return {verified_neighbors, false_positive_rate};
     }
+
+    inline std::tuple<vector<uint>, double> verify_neighbors(const Eigen::VectorXf &query, const vector<uint> &candidate_neighbors){
+        vector<uint> verified_neighbors;
+        verified_neighbors.reserve(candidate_neighbors.size());
+       
+        
+        double false_positives = 0.0;
+        double cosine_threshold = std::cos(num_degrees_ * std::pi / 180.0);
+        for(const uint &item_id : candidate_neighbors ){
+            double similiarity = query.dot(data_eigen_.row(item_id));
+        }
+        double false_positive_rate = 0.0;
+        if (!candidate_neighbors.empty())
+            false_positive_rate = false_positives / candidate_neighbors.size();
+            if (similarity >= cosine_threshold) {
+                verified_neighbors.push_back(item_id);
+            }
+            else
+                false_positives += 1.0;
+            double false_positive_rate = 0.0;
+            if (!candidate_neighbors.empty())
+                false_positive_rate = false_positives / candidate_neighbors.size();
+        
+
+        return {verified_neighbors, false_positive_rate};
+    }
+
 
     /**
      * @brief Packs boolean hashes into 64 bit uints
