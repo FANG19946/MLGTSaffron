@@ -45,7 +45,10 @@ public:
     uint num_masks_;
     uint num_shards_;
     uint mask_size_;
+    uint num_features_;
     vector<vector<uint>> doc_index_; 
+    vector<uint8_t> visited_;
+
 
     /**
      * @brief Empty constructor for OrionIndex.
@@ -58,8 +61,8 @@ public:
      * @param num_hashes The number of hashes (LSH functions) per item.
      * @param threshold The number of matching hashes required for a query match.
      */
-    OrionIndex(uint num_masks, uint num_hashes, uint threshold) 
-        : num_masks_(num_masks), num_hashes_(num_hashes), threshold_(threshold),  num_shards_(32) {
+    OrionIndex(uint num_features, uint num_masks, uint num_hashes, uint threshold) 
+        : num_features_(num_features), num_masks_(num_masks), num_hashes_(num_hashes), threshold_(threshold),  num_shards_(32), visited_(num_features_, 0) {
         hash_buckets_.resize(num_masks_);
         
     }
@@ -199,6 +202,7 @@ public:
 
         ProgressBar progress(num_masks_);
         std::atomic<uint64_t> completed_masks{0};
+        cout<<"Generating Compressed Hashes "<<endl;
         #pragma omp parallel for collapse(2) schedule(static)
         for(uint mask_id = 0; mask_id < num_masks_; mask_id++){
             for(uint item_id = 0; item_id < num_features; item_id++){
@@ -219,6 +223,7 @@ public:
 
         // progress(num_masks_);
         completed_masks = 0;
+        cout << "Building Inverted Index for Each Mask" << endl;
         #pragma omp parallel for num_threads(num_shards_)
         for(uint shard = 0; shard < num_shards_; shard++){
             for(uint mask_id = shard; mask_id < num_masks_; mask_id+=num_shards_){
@@ -281,10 +286,11 @@ public:
      * @return set<uint> That contains item_ids of the possible candidate items.
      */
 
-    inline set<uint> get_matches(const vector<bool> &query_hash, const MaskMatrix &sky_map ){
+    inline vector<uint> get_matches(const vector<bool> &query_hash, const MaskMatrix &sky_map ){
         
         vector<uint> compressed_hashes;
-        set<uint> candidates;
+        vector<uint> candidates;
+        candidates.reserve(10000);
         
         compressed_hashes.resize(num_masks_);
         compressed_hashes = sky_map.getCompressedHash(query_hash);
@@ -304,10 +310,17 @@ public:
 
             for( uint i = start_index; i < start_index + item_count; i++  ){
                 uint global_id = doc_index_[shard][i];
-                candidates.insert(global_id);
+                if(!visited_[global_id]){
+                    visited_[global_id] = 1;
+                    candidates.push_back(global_id);
+                }
                 
             }
+            
         }
+        for(uint &item_id : candidates ){
+                visited_[item_id] = 0; 
+            }
         return candidates;
 
     }

@@ -9,7 +9,7 @@
 #include "MaskMatrix.hpp"
 #include "OrionIndex.hpp"
 #include <boost/math/distributions/normal.hpp>
-
+#include <bit>
 
 /**
  * @brief K-Hypercube Hash Approximate Neighbor implementation.
@@ -34,6 +34,8 @@ public:
     uint debug_;
     MaskMatrix sky_map_;
     vector<vector<bool>> all_hashes_;
+    vector<vector<uint64_t>> packed_hashes_;
+    uint num_packed_hashes_;
 
 
 public:
@@ -163,6 +165,17 @@ public:
         }
         std::cout << std::endl;
 
+        num_packed_hashes_ = (num_hashes_ + 63) / 64;
+        packed_hashes_.resize(num_features);
+
+        // Pack computed boolean hashes into 64 bit uints
+        cout << "Packing Boolean Values into 64 bit Chunks.." << endl;
+        #pragma omp parallel for 
+        for (int item_idx = 0; item_idx < (int)num_features_; ++item_idx) {
+            packed_hashes_[item_idx] = pack_hash(all_hashes_[item_idx]);
+        }
+        
+
         // cout << "Loading precomputed hashes..." << endl;
         // vector<vector<uint>> all_hashes(num_features_);
 
@@ -209,7 +222,7 @@ public:
         cout<<"Building OrionIndex"<<endl;
         
         
-        heliosIndex_ = OrionIndex(num_masks_, num_hashes_, threshold_);
+        heliosIndex_ = OrionIndex(num_features_, num_masks_, num_hashes_, threshold_);
         // Index uses the mask matrix
         heliosIndex_.build(all_hashes_, sky_map_);
         cout<<"OrionIndex Built"<<endl;
@@ -264,20 +277,20 @@ public:
             
         // Probing Time
         auto t_probe_start = std::chrono::high_resolution_clock::now();
-        set<uint> candidate_neighbors = heliosIndex_.get_matches(query_hash, sky_map_);
+        vector<uint> candidate_neighbors = heliosIndex_.get_matches(query_hash, sky_map_);
         auto t_probe_end = std::chrono::high_resolution_clock::now();
         double probing_time = std::chrono::duration<double>(t_probe_end - t_probe_start).count();
 
         // Verification Time
         auto t_verification_start = std::chrono::high_resolution_clock::now();
-        set<uint> verified_neighbors = verify_neighbors(query_hash, candidate_neighbors);
+        vector<uint> verified_neighbors = verify_neighbors(query_hash, candidate_neighbors, num_hashes_%64);
         auto t_verification_end = std::chrono::high_resolution_clock::now();
         double verification_time = std::chrono::duration<double>(t_verification_end - t_verification_start).count();
 
-        std::vector<uint> v(verified_neighbors.begin(), verified_neighbors.end());
+        
         
 
-        return { v, hashing_time, probing_time, verification_time };
+        return { verified_neighbors, hashing_time, probing_time, verification_time };
     }
 
     /**
@@ -307,6 +320,58 @@ public:
         }
 
         return verified_neighbors;
+    }
+
+    inline vector<uint> verify_neighbors(const vector<bool> &query_hash,const vector<uint> &candidate_neighbors, uint excess){
+        vector<uint> verified_neighbors;
+        verified_neighbors.reserve(candidate_neighbors.size());
+        vector<uint64_t> packed_query_hash = pack_hash(query_hash);
+        
+        for(const uint &item_id : candidate_neighbors ){
+            uint hamming_distance = 0;
+            
+            for(uint i = 0; i < num_packed_hashes_; i++){
+                hamming_distance += std::popcount(packed_query_hash[i] ^ packed_hashes_[item_id][i]);
+                if(hamming_distance > threshold_ + excess)
+                    break;
+            }
+            if(hamming_distance <= threshold_ + excess){
+                verified_neighbors.push_back(item_id);
+            }
+
+        }
+
+        return verified_neighbors;
+    }
+
+    /**
+     * @brief Packs boolean hashes into 64 bit uints
+     * 
+     * @param binary_hash vector<bool> The binary hashes of an item.
+     * @return vector<uint64_t> Binary hashes packed into 64 bit uints.
+     */
+    vector<uint64_t> pack_hash(const vector<bool>& binary_hash) {
+        uint num_hashes = binary_hash.size();
+        uint num_packed_hashes = (num_hashes + 63) / 64;
+
+        vector<uint64_t> packed_hash(num_packed_hashes);
+
+        for (uint chunk = 0; chunk < num_hashes; chunk += 64) {
+            uint64_t base = 1ULL << 63;
+            uint64_t hash_val = 0;
+
+            uint end = std::min(chunk + 64, num_hashes);
+
+            for (uint pos = chunk; pos < end; ++pos) {
+                if (binary_hash[pos])
+                    hash_val |= base;
+                base >>= 1;
+            }
+
+            packed_hash[chunk / 64] = hash_val;
+        }
+
+        return packed_hash;
     }
 
     /**

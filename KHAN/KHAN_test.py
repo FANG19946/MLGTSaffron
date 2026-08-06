@@ -136,7 +136,8 @@ def test_KHAN(
             num_hashes,
             hash_bits, 
             verbose,
-            KHAN_index.all_hashes_
+            KHAN_index.all_hashes_,
+            KHAN_index.packed_hashes_
         )
     else:
         raise ValueError(f"Unknown algorithm: {algo_name}")
@@ -199,8 +200,8 @@ def test_KHAN(
 
         
         # Naive search
-        true_indices, naive_postings, naive_time = brute_index.bruteSearch(query)
-        
+        true_indices, naive_time = brute_index.bruteSearch(query, num_hashes%64)
+        naive_postings = 0
         naive_times.append(naive_time)
         
         
@@ -403,7 +404,7 @@ if __name__ == "__main__":
 
                     log(f"--- Results for {algo.upper()} on {dname.upper()} ---")
                     log(f"Indexing Time: {idx_time:.6f} seconds")
-                    log(f"Avg Saffron Search: {avg_KHAN_time:.6f} seconds")
+                    log(f"Avg KHAN Search: {avg_KHAN_time:.6f} seconds")
                     log(f"Avg Naive Search:   {avg_naive_time:.6f} seconds")
                     log(f"Avg Precision:      {avg_precision:.4f}")
                     log(f"Avg Recall:         {avg_recall:.4f}")

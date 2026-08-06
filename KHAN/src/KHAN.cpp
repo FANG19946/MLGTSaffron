@@ -53,10 +53,15 @@ PYBIND11_MODULE(KHAN, m){
      // OrionIndex
      py::class_<OrionIndex>(m, "OrionIndex",
      "Global inverted index organized by pools.")
-     .def(py::init<uint, uint, uint>(),
-         py::arg("hash_range"),
-         py::arg("num_hashes"),
-         py::arg("threshold"))
+     .def(py::init<
+        uint,
+        uint,
+        uint,
+        uint>(),
+        py::arg("num_features"),
+        py::arg("num_masks"),
+        py::arg("num_hashes"),
+        py::arg("threshold"))
      .def(
         "build",
         (void (OrionIndex::*)(
@@ -104,6 +109,8 @@ PYBIND11_MODULE(KHAN, m){
 
     .def_readonly("threshold_", &KHAN::threshold_)
     .def_readonly("all_hashes_", &KHAN::all_hashes_)
+    .def_readonly("packed_hashes_", &KHAN::packed_hashes_)
+
 
     .def("search", &KHAN::search, py::arg("query"))
     .def("__call__", &KHAN::operator(), py::arg("query"));
@@ -121,17 +128,28 @@ PYBIND11_MODULE(KHAN, m){
     uint,
     uint,
     int,
-    const vector<vector<bool>>&>(),
+    std::vector<std::vector<bool>>,
+    std::vector<std::vector<uint64_t>>&
+    >(),
     py::arg("threshold"),
     py::arg("num_features"),
     py::arg("dimension"),
     py::arg("num_hashes"),
     py::arg("hash_bits"),
     py::arg("debug") = 0,
-    py::arg("all_hashes"))
-     .def("bruteSearch",
-          &BruteForceHashSearch::bruteSearch,
-          py::arg("query"));
+    py::arg("all_hashes"),
+    py::arg("packed_hashes"))
+     .def(
+    "bruteSearch",
+    py::overload_cast<py::array_t<float>>(
+        &BruteForceHashSearch::bruteSearch),
+    py::arg("query"))
+
+    .def("bruteSearch",
+     py::overload_cast<py::array_t<float>, uint>(
+         &BruteForceHashSearch::bruteSearch),
+     py::arg("query"),
+     py::arg("excess"));
     
     
 }
