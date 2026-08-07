@@ -16,20 +16,20 @@ for csv_file in glob.glob(os.path.join("results", "*.csv")):
     df = pd.read_csv(csv_file)
 
     # Skip files without the required column
-    if "Saffron Time" not in df.columns:
-        print(f"Skipping {csv_file}: 'Saffron Time' column not found.")
+    if "KHAN Time" not in df.columns:
+        print(f"Skipping {csv_file}: 'KHAN Time' column not found.")
         continue
 
     # Convert seconds -> milliseconds
-    times_ms = df["Saffron Time"] * 1000
+    times_ms = df["KHAN Time"] * 1000
 
     # 10 ms bins
-    bins = np.arange(0, times_ms.max() + 10, 10)
+    bins = np.arange(0, times_ms.max() + 10, 0.1)
 
     plt.figure(figsize=(8, 5))
     plt.hist(times_ms, bins=bins, edgecolor="black")
 
-    plt.xlabel("Saffron Search Time (ms)")
+    plt.xlabel("KHAN Search Time (ms)")
     plt.ylabel("Frequency")
 
     base_name = os.path.splitext(os.path.basename(csv_file))[0]

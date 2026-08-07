@@ -284,14 +284,14 @@ public:
 
         // Verification Time
         auto t_verification_start = std::chrono::high_resolution_clock::now();
-        auto [verified_neighbors, false_positive_rate] = verify_neighbors(query, candidate_neighbors);
+        auto [verified_neighbors, candidate_rejection_rate] = verify_neighbors(query_hash, candidate_neighbors, num_hashes_ % 64);
         auto t_verification_end = std::chrono::high_resolution_clock::now();
         double verification_time = std::chrono::duration<double>(t_verification_end - t_verification_start).count();
 
         
         
 
-        return { verified_neighbors, hashing_time, probing_time, verification_time, false_positive_rate };
+        return { verified_neighbors, hashing_time, probing_time, verification_time, candidate_rejection_rate };
     }
 
     /**
@@ -328,7 +328,7 @@ public:
         verified_neighbors.reserve(candidate_neighbors.size());
         vector<uint64_t> packed_query_hash = pack_hash(query_hash);
         
-        double false_positives = 0.0;
+        double false_candidates = 0.0;
         for(const uint &item_id : candidate_neighbors ){
             uint hamming_distance = 0;
             
@@ -341,15 +341,15 @@ public:
                 verified_neighbors.push_back(item_id);
             }
             else
-                false_positives += 1.0;
+                false_candidates += 1.0;
 
         }
-        double false_positive_rate = 0.0;
+        double candidate_rejection_rate = 0.0;
         if (!candidate_neighbors.empty())
-            false_positive_rate = false_positives / candidate_neighbors.size();
+            candidate_rejection_rate = false_candidates / candidate_neighbors.size();
         
 
-        return {verified_neighbors, false_positive_rate};
+        return {verified_neighbors, candidate_rejection_rate};
     }
 
     inline std::tuple<vector<uint>, double> verify_neighbors(const Eigen::VectorXf &query, const vector<uint> &candidate_neighbors){
@@ -357,25 +357,27 @@ public:
         verified_neighbors.reserve(candidate_neighbors.size());
        
         
-        double false_positives = 0.0;
-        double cosine_threshold = std::cos(num_degrees_ * std::pi / 180.0);
+        double false_candidates = 0.0;
+        double candidate_rejection_rate = 0.0;
+
+        double cosine_threshold = std::cos(num_degrees_ * std::numbers::pi / 180.0);
         for(const uint &item_id : candidate_neighbors ){
-            double similiarity = query.dot(data_eigen_.row(item_id));
-        }
-        double false_positive_rate = 0.0;
-        if (!candidate_neighbors.empty())
-            false_positive_rate = false_positives / candidate_neighbors.size();
+            double similarity = query.dot(data_eigen_.row(item_id));
+            candidate_rejection_rate = false_candidates / candidate_neighbors.size();
             if (similarity >= cosine_threshold) {
                 verified_neighbors.push_back(item_id);
             }
             else
-                false_positives += 1.0;
-            double false_positive_rate = 0.0;
+                false_candidates += 1.0;
+        }
+        
+          
+            
             if (!candidate_neighbors.empty())
-                false_positive_rate = false_positives / candidate_neighbors.size();
+                candidate_rejection_rate = false_candidates / candidate_neighbors.size();
         
 
-        return {verified_neighbors, false_positive_rate};
+        return {verified_neighbors, candidate_rejection_rate};
     }
 
 
