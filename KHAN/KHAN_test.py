@@ -73,7 +73,7 @@ def save_KHAN_search_times_csv(
 
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Query", "KHAN Time", "Naive Times", "Hash Time", "Probe Time", "Verification Time", "False Positive Rate"])
+        writer.writerow(["Query", "KHAN Time", "Naive Times", "Hash Time", "Probe Time", "Verification Time", "Candidate Rejection Rate"])
 
         for i, (k, n, h, p, v, fp) in enumerate(zip(KHAN_times, naive_times, hash_times, probe_times, verification_times, false_candidate_rates ), start=1):
             writer.writerow([i, k, n, h, p, v, fp])
@@ -206,7 +206,7 @@ def test_KHAN(
 
         
         # Naive search
-        true_indices, naive_time = brute_index.bruteSearch(query, num_hashes%64)
+        true_indices, naive_time = KHAN_index.bruteSearch(query)
         naive_postings = 0
         naive_times.append(naive_time)
         

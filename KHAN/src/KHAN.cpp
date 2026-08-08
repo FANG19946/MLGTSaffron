@@ -113,6 +113,7 @@ PYBIND11_MODULE(KHAN, m){
 
 
     .def("search", &KHAN::search, py::arg("query"))
+    .def("bruteSearch", &KHAN::bruteSearch, py::arg("query"))
     .def("__call__", &KHAN::operator(), py::arg("query"));
 
     

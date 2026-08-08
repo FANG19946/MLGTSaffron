@@ -284,7 +284,8 @@ public:
 
         // Verification Time
         auto t_verification_start = std::chrono::high_resolution_clock::now();
-        auto [verified_neighbors, candidate_rejection_rate] = verify_neighbors(query_hash, candidate_neighbors, num_hashes_ % 64);
+        // auto [hamming_verified_neighbors, hamming_candidate_rejection_rate] = verify_neighbors(query_hash, candidate_neighbors, num_hashes_ % 64);
+        auto [verified_neighbors, candidate_rejection_rate] = verify_neighbors(query, candidate_neighbors);
         auto t_verification_end = std::chrono::high_resolution_clock::now();
         double verification_time = std::chrono::duration<double>(t_verification_end - t_verification_start).count();
 
@@ -379,6 +380,43 @@ public:
 
         return {verified_neighbors, candidate_rejection_rate};
     }
+
+    inline std::tuple<std::vector<uint>, double> bruteSearch(pybind11::array_t<float> query_arr) {
+        
+        auto start = std::chrono::high_resolution_clock::now();
+
+        Eigen::Map<const Eigen::VectorXf> q_raw(query_arr.data(), dimension_);
+        Eigen::VectorXf query = q_raw;
+
+        if (normalize_) {
+            float norm = query.norm();
+            if (norm > 1e-9f)
+                query /= norm;
+        }
+
+        vector<uint> neighbors;
+        neighbors.reserve(1000000);   
+
+        float cosine_threshold = std::cos(num_degrees_ * std::numbers::pi / 180.0);
+
+        for (uint item_id = 0; item_id < num_features_; ++item_id) {
+            float similarity = query.dot(data_eigen_.row(item_id));
+
+            if (similarity >= cosine_threshold) {
+                neighbors.push_back(item_id);
+            }
+        }
+
+        auto end = std::chrono::high_resolution_clock::now();
+        double elapsed = std::chrono::duration<double>(end - start).count();
+
+        return {neighbors, elapsed};
+
+
+
+        
+    }
+    
 
 
     /**
