@@ -108,7 +108,7 @@ public:
         long double prob_single_set_not_covered = 1.0L - prob_single_set_covered;
 
         // Number of masks required
-        long double required_masks = log((1.0L - cover_fraction_) / binomial(num_hashes_, threshold_))/ log(prob_single_set_not_covered);
+        long double required_masks = log((1.0L - cover_fraction_) / num_features_)/ log(prob_single_set_not_covered);
         num_masks_ =  static_cast<uint>(std::ceil(required_masks));
         if(debug_){
             cout<< "Coverage by Single Mask: " << prob_single_set_covered << endl;
@@ -262,7 +262,7 @@ public:
      * @return tuple[ vector<uint>, double, double, double ] The item_ids of the defective items, hashing_time, probing_time, verification_time.
      */
     // Changed search to return (topK, hashing_time, decoding_time, total_postings_traversed)
-    inline std::tuple<std::vector<uint>, double, double, double, double> search(pybind11::array_t<float> query_arr) {
+    inline std::tuple<std::vector<uint>, double, double, double, double, uint, uint, uint> search(pybind11::array_t<float> query_arr) {
         Eigen::Map<const Eigen::VectorXf> q_raw(query_arr.data(), dimension_);
         Eigen::VectorXf query = q_raw;
         if (normalize_) {
@@ -278,7 +278,7 @@ public:
             
         // Probing Time
         auto t_probe_start = std::chrono::high_resolution_clock::now();
-        vector<uint> candidate_neighbors = heliosIndex_.get_matches(query_hash, sky_map_);
+        auto [candidate_neighbors, postings_traversed] = heliosIndex_.get_matches(query_hash, sky_map_);
         auto t_probe_end = std::chrono::high_resolution_clock::now();
         double probing_time = std::chrono::duration<double>(t_probe_end - t_probe_start).count();
 
@@ -289,10 +289,15 @@ public:
         auto t_verification_end = std::chrono::high_resolution_clock::now();
         double verification_time = std::chrono::duration<double>(t_verification_end - t_verification_start).count();
 
+        uint candidate_count = candidate_neighbors.size();
+        uint verified_count = verified_neighbors.size();
+        uint rejected_count = candidate_count - verified_count;
+
+
         
         
 
-        return { verified_neighbors, hashing_time, probing_time, verification_time, candidate_rejection_rate };
+        return { verified_neighbors, hashing_time, probing_time, verification_time, candidate_rejection_rate, postings_traversed, verified_count, rejected_count };
     }
 
     /**

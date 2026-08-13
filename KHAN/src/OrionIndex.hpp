@@ -286,10 +286,11 @@ public:
      * @return set<uint> That contains item_ids of the possible candidate items.
      */
 
-    inline vector<uint> get_matches(const vector<bool> &query_hash, const MaskMatrix &sky_map ){
+    inline std::tuple<vector<uint>, uint> get_matches(const vector<bool> &query_hash, const MaskMatrix &sky_map ){
         
         vector<uint> compressed_hashes;
         vector<uint> candidates;
+        uint postings_traversed = 0;
         candidates.reserve(10000);
         
         compressed_hashes.resize(num_masks_);
@@ -314,6 +315,7 @@ public:
                     visited_[global_id] = 1;
                     candidates.push_back(global_id);
                 }
+                postings_traversed++;
                 
             }
             
@@ -321,7 +323,7 @@ public:
         for(uint &item_id : candidates ){
                 visited_[item_id] = 0; 
             }
-        return candidates;
+        return { candidates, postings_traversed };
 
     }
 

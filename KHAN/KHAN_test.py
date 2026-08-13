@@ -53,12 +53,16 @@ def plot_saffron_search_times(
     print(f"Saved plot to {filename}")
 
 def save_KHAN_search_times_csv(
+    # new logging parameters
     KHAN_times: List[float],
     naive_times: List[float],
     hash_times: List[float],
     probe_times: List[float],
     verification_times: List[float],
     false_candidate_rates: List[float],
+    postings_traversed: List[float],
+    verified_counts: List[float],
+    rejected_counts: List[float],
     dataset_name: str,
     algo_name: str,
 ):
@@ -73,10 +77,11 @@ def save_KHAN_search_times_csv(
 
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["Query", "KHAN Time", "Naive Times", "Hash Time", "Probe Time", "Verification Time", "Candidate Rejection Rate"])
+        # new logging parameters
+        writer.writerow(["Query", "KHAN Time", "Naive Times", "Hash Time", "Probe Time", "Verification Time", "Candidate Rejection Rate", "Postings Traversed", "Verified Counts", "Rejected Counts"])
 
-        for i, (k, n, h, p, v, fp) in enumerate(zip(KHAN_times, naive_times, hash_times, probe_times, verification_times, false_candidate_rates ), start=1):
-            writer.writerow([i, k, n, h, p, v, fp])
+        for i, (k, n, h, p, v, fp, pt, vc, rc) in enumerate(zip(KHAN_times, naive_times, hash_times, probe_times, verification_times, false_candidate_rates, postings_traversed, verified_counts, rejected_counts), start=1):
+            writer.writerow([i, k, n, h, p, v, fp, pt, vc, rc])
 
     print(f"Saved CSV to {filename}")
 
@@ -92,7 +97,8 @@ def test_KHAN(
         hash_bits: int = 20,
         threshold: int = 20,
         verbose: int = 0,
-) -> Tuple[float, float, float, float, float, float, float, float]:
+        # new logging parameters
+) -> Tuple[float, float, float, float, float, float, float, float, float, float, float, float]:
     #region description
     """
     Test the KHAN implementation on a given dataset and query set.
@@ -115,7 +121,10 @@ def test_KHAN(
     - Average Hashing times per query
     - Average Probing times per query
     - Average Verification times per query
-
+    - Average False Candidate Rate per query
+    - Average Postings Traversed per query
+    - Average Verified Counts per query
+    - Average Rejected Counts per query
     """
     # endregion
     
@@ -143,6 +152,7 @@ def test_KHAN(
     else:
         raise ValueError(f"Unknown algorithm: {algo_name}")
     
+    # new logging parameters
     # region timer initializations
     idx_time: float = time.time() - idx_start
     total_KHAN_time: float = 0.0
@@ -152,15 +162,22 @@ def test_KHAN(
     total_recall: float = 0.0
     total_probe_time: float = 0.0
     total_verification_time: float = 0.0
+    total_postings_traversed: float = 0.0
+    total_verified_counts: float = 0.0
+    total_rejected_counts: float = 0.0
     
     num_queries: int = query_set.shape[0]
     # List of KHAN and Search times
+    # new logging parameters
     KHAN_times: List[float] = []
     hash_times: List[float] = []
     probe_times: List[float] = []
     verification_times: List[float] = []
     naive_times: List[float] = []
     false_candidate_rates: List[float] = []
+    postings_traversed_list: List[float] = []
+    verified_counts_list: List[float] = []
+    rejected_counts_list: List[float] = []  
 
 
     # endregion
@@ -182,26 +199,29 @@ def test_KHAN(
 
         
         if isinstance(result, tuple):
-            retrieved_indices, hashing_time, probing_time, verification_time, false_candidate_rate = result
+            retrieved_indices, hashing_time, probing_time, verification_time, false_candidate_rate, postings_traversed, verified_count, rejected_count = result
         else:
             retrieved_indices = result
             hashing_time = 0.0
             probing_time = 0.0
             verification_time = 0.0
             false_candidate_rate = 0.0
-       
-
+            postings_traversed = 0.0
+            verified_count = 0.0
+            rejected_count = 0.0
 
 
         KHAN_time: float = time.time() - start_time
         # Appending to List of Times
+        # new logging parameters
         KHAN_times.append(KHAN_time)
         hash_times.append(hashing_time)
         probe_times.append(probing_time)
         verification_times.append(verification_time)
         false_candidate_rates.append(false_candidate_rate)
-        
-        
+        postings_traversed_list.append(postings_traversed)
+        verified_counts_list.append(verified_count)
+        rejected_counts_list.append(rejected_count)
 
 
         
@@ -248,8 +268,10 @@ def test_KHAN(
         total_probe_time += probing_time
         total_verification_time += verification_time
         total_false_candidate_rate += false_candidate_rate
+        total_postings_traversed += postings_traversed
+        total_verified_counts += verified_count
+        total_rejected_counts += rejected_count
 
-    
     avg_KHAN_time: float = total_KHAN_time / num_queries
     avg_naive_time: float = total_naive_time / num_queries
     avg_precision: float = total_precision / num_queries
@@ -260,11 +282,14 @@ def test_KHAN(
     avg_probe_time: float = total_probe_time / num_queries
     avg_verification_time: float = total_verification_time / num_queries
     avg_false_candidate_rate: float = total_false_candidate_rate / num_queries
+    avg_postings_traversed: float = total_postings_traversed / num_queries
+    avg_verified_counts: float = total_verified_counts / num_queries
+    avg_rejected_counts: float = total_rejected_counts / num_queries
 
     # Plot Histogram 
     # plot_saffron_search_times(saffron_times, CURRENT_DATASET, ALGO_NAME)
     # Save CSV
-    save_KHAN_search_times_csv( KHAN_times, naive_times, hash_times, probe_times, verification_times, false_candidate_rates, CURRENT_DATASET, ALGO_NAME)
+    save_KHAN_search_times_csv( KHAN_times, naive_times, hash_times, probe_times, verification_times, false_candidate_rates, postings_traversed_list, verified_counts_list, rejected_counts_list, CURRENT_DATASET, ALGO_NAME)
     return (
     idx_time,
     avg_KHAN_time,
@@ -274,7 +299,10 @@ def test_KHAN(
     avg_hash_time,
     avg_probe_time,
     avg_verification_time,
-    avg_false_candidate_rate
+    avg_false_candidate_rate,
+    avg_postings_traversed,
+    avg_verified_counts,
+    avg_rejected_counts
     )
 
 
@@ -385,7 +413,7 @@ if __name__ == "__main__":
                 print(f"\n>>> Running: Dataset={dname}, Algo={algo}, k={args.num_neighbors}, hashes={nh}, bits={hb}, threshold={th}")
                 
 
-                idx_time, avg_KHAN_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_probe_time, avg_verification_time, avg_false_candidate_rate = test_KHAN(
+                idx_time, avg_KHAN_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_probe_time, avg_verification_time, avg_false_candidate_rate, avg_postings_traversed, avg_verified_counts, avg_rejected_counts = test_KHAN(
                     full_dataset, 
                     full_query_set, 
                     args.num_neighbors,
