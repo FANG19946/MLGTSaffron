@@ -110,7 +110,7 @@ PYBIND11_MODULE(KHAN, m){
     .def_readonly("threshold_", &KHAN::threshold_)
     .def_readonly("all_hashes_", &KHAN::all_hashes_)
     .def_readonly("packed_hashes_", &KHAN::packed_hashes_)
-
+    .def_readonly("num_masks_", &KHAN::num_masks_)
 
     .def("search", &KHAN::search, py::arg("query"))
     .def("bruteSearch", &KHAN::bruteSearch, py::arg("query"))

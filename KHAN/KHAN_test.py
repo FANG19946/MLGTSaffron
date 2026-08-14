@@ -65,6 +65,7 @@ def save_KHAN_search_times_csv(
     rejected_counts: List[float],
     dataset_name: str,
     algo_name: str,
+    num_degrees,
 ):
     """Save KHAN timings to a CSV."""
 
@@ -72,7 +73,8 @@ def save_KHAN_search_times_csv(
 
     filename = os.path.join(
         "results",
-        f"KHAN_search_times_{dataset_name.lower()}_{algo_name.lower()}.csv"
+        f"KHAN_search_times_{dataset_name.lower()}_{algo_name.lower()}_{num_degrees}deg.csv"
+
     )
 
     with open(filename, "w", newline="") as f:
@@ -94,11 +96,12 @@ def test_KHAN(
         num_neighbors: int,
         algo_name: str = "mlgt",
         num_hashes: int = 50,
+        num_degrees: float = 10,
         hash_bits: int = 20,
         threshold: int = 20,
         verbose: int = 0,
         # new logging parameters
-) -> Tuple[float, float, float, float, float, float, float, float, float, float, float, float]:
+) -> Tuple[float, float, float, float, float, float, float, float, float, float, float, float, float]:
     #region description
     """
     Test the KHAN implementation on a given dataset and query set.
@@ -109,6 +112,7 @@ def test_KHAN(
     - num_neighbors: int, number of nearest neighbors to retrieve
     - algo_name: str, "mlgt" or "bloom"
     - num_hashes: int, number of compound hash functions
+    - num_degrees: int, number of degrees for the KHAN index
     - hash_bits: int, number of bits per compound hash
     - threshold: int, number of matches required
 
@@ -136,6 +140,7 @@ def test_KHAN(
             num_neighbors,
             dataset.shape[0],
             num_hashes=num_hashes,
+            num_degrees=num_degrees,
             hash_bits=hash_bits,
             debug=verbose,
         ) # type: ignore
@@ -276,6 +281,7 @@ def test_KHAN(
     avg_naive_time: float = total_naive_time / num_queries
     avg_precision: float = total_precision / num_queries
     avg_recall: float = total_recall / num_queries
+    num_masks_ = KHAN_index.num_masks_ if hasattr(KHAN_index, 'num_masks_') else 0
 
     # Total Hash and Decode Times
     avg_hash_time: float = total_hash_time / num_queries
@@ -289,7 +295,7 @@ def test_KHAN(
     # Plot Histogram 
     # plot_saffron_search_times(saffron_times, CURRENT_DATASET, ALGO_NAME)
     # Save CSV
-    save_KHAN_search_times_csv( KHAN_times, naive_times, hash_times, probe_times, verification_times, false_candidate_rates, postings_traversed_list, verified_counts_list, rejected_counts_list, CURRENT_DATASET, ALGO_NAME)
+    save_KHAN_search_times_csv( KHAN_times, naive_times, hash_times, probe_times, verification_times, false_candidate_rates, postings_traversed_list, verified_counts_list, rejected_counts_list, CURRENT_DATASET, ALGO_NAME, num_degrees)
     return (
     idx_time,
     avg_KHAN_time,
@@ -302,7 +308,8 @@ def test_KHAN(
     avg_false_candidate_rate,
     avg_postings_traversed,
     avg_verified_counts,
-    avg_rejected_counts
+    avg_rejected_counts,
+    num_masks_
     )
 
 
@@ -377,6 +384,13 @@ if __name__ == "__main__":
         help="Match threshold for Bloom Filter (default: 10)"
     )
     parser.add_argument(
+    "--num-degrees",
+    type=str,
+    default="10",
+    choices=["5", "10", "15", "20", "25", "30", "all"],
+    help="Cone angle in degrees [5, 10, 15, 20, 25, 30, all]. Default: 10"
+    )
+    parser.add_argument(
         "--verbose",
         "-v",
         type=int,
@@ -389,6 +403,11 @@ if __name__ == "__main__":
     datasets_to_run = args.dataset
     if "all" in datasets_to_run:
         datasets_to_run = DATASETS
+    # Determine which degrees to run
+    if args.num_degrees == "all":
+        degrees_to_run = [5, 10, 15, 20, 25, 30]
+    else:
+        degrees_to_run = [int(args.num_degrees)]
 
     # Nested loops for parameters
     for dname in datasets_to_run:
@@ -409,47 +428,57 @@ if __name__ == "__main__":
 
         for algo in args.algo:
             ALGO_NAME = algo
-            for nh, hb, th in zip(args.num_hashes, args.hash_bits, args.threshold):
-                print(f"\n>>> Running: Dataset={dname}, Algo={algo}, k={args.num_neighbors}, hashes={nh}, bits={hb}, threshold={th}")
-                
+            for num_degrees in degrees_to_run:          
+                for nh, hb, th in zip(args.num_hashes, args.hash_bits, args.threshold):
+                    print(f"\n>>> Running: Dataset={dname}, Algo={algo}, k={args.num_neighbors}, hashes={nh}, bits={hb}, num_degrees={num_degrees}")
+                    
 
-                idx_time, avg_KHAN_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_probe_time, avg_verification_time, avg_false_candidate_rate, avg_postings_traversed, avg_verified_counts, avg_rejected_counts = test_KHAN(
-                    full_dataset, 
-                    full_query_set, 
-                    args.num_neighbors,
-                    algo,
-                    nh,
-                    hb,
-                    th,
-                    args.verbose
-                )
+                    idx_time, avg_KHAN_time, avg_naive_time, avg_precision, avg_recall, avg_hash_time, avg_probe_time, avg_verification_time, avg_false_candidate_rate, avg_postings_traversed, avg_verified_counts, avg_rejected_counts, num_masks_ = test_KHAN(
+                        full_dataset, 
+                        full_query_set, 
+                        args.num_neighbors,
+                        algo,
+                        nh,
+                        num_degrees,
+                        hb,
+                        th,
+                        args.verbose
+                    )
 
-                # print(f"--- Results for {algo.upper()} on {dname.upper()} ---")
-                # print(f"Indexing Time: {idx_time:.6f} seconds")
-                # print(f"Avg KHAN Search: {avg_KHAN_time:.6f} seconds")
-                # print(f"Avg Naive Search:   {avg_naive_time:.6f} seconds")
-                # print(f"Avg Precision:      {avg_precision:.4f}")
-                # print(f"Avg Recall:         {avg_recall:.4f}")
-                # print(f"Avg Hash Time:     {avg_hash_time:.6f} seconds")
-                # print(f"Avg Decode Time:   {avg_decode_time:.6f} seconds")
-                # print(f"Avg Test Evaluation Time:   {avg_test_evaluation_time:.6f} seconds")
+                    # print(f"--- Results for {algo.upper()} on {dname.upper()} ---")
+                    # print(f"Indexing Time: {idx_time:.6f} seconds")
+                    # print(f"Avg KHAN Search: {avg_KHAN_time:.6f} seconds")
+                    # print(f"Avg Naive Search:   {avg_naive_time:.6f} seconds")
+                    # print(f"Avg Precision:      {avg_precision:.4f}")
+                    # print(f"Avg Recall:         {avg_recall:.4f}")
+                    # print(f"Avg Hash Time:     {avg_hash_time:.6f} seconds")
+                    # print(f"Avg Decode Time:   {avg_decode_time:.6f} seconds")
+                    # print(f"Avg Test Evaluation Time:   {avg_test_evaluation_time:.6f} seconds")
 
-                with open("KHAN_results.txt", "a") as f:
+                    with open("KHAN_results.txt", "a") as f:
 
-                    def log(msg):
-                        print(msg)          # terminal
-                        print(msg, file=f)  # file
+                        def log(msg):
+                            print(msg)          # terminal
+                            print(msg, file=f)  # file
 
-                    log(f"--- Results for {algo.upper()} on {dname.upper()} ---")
-                    log(f"Indexing Time: {idx_time:.6f} seconds")
-                    log(f"Avg KHAN Search: {avg_KHAN_time:.6f} seconds")
-                    log(f"Avg Naive Search:   {avg_naive_time:.6f} seconds")
-                    log(f"Avg Precision:      {avg_precision:.4f}")
-                    log(f"Avg Recall:         {avg_recall:.4f}")
-                    log(f"Avg Hash Time:      {avg_hash_time:.6f} seconds")
-                    log(f"Avg Probe Time:    {avg_probe_time:.6f} seconds")
-                    log(f"Avg Verification Time: {avg_verification_time:.6f} seconds")
-                    log(f"Avg False Candidate Rate: {avg_false_candidate_rate:.6f} ")
-                    log("")
+                        log(f"--- Results for {algo.upper()} on {dname.upper()} ---")
+                        log(f"Indexing Time: {idx_time:.6f} seconds")
+                        log(f"Number of Masks Used: {num_masks_}")
+                        log(f"Number of Items in Dataset: {args.num_features if args.num_features > 0 else full_dataset.shape[0]}")
+                        log(f"Number of Queries Tested: {args.num_queries if args.num_queries > 0 else full_query_set.shape[0]}")
+                        log(f"Number of Degrees: {num_degrees:.1f}")
+                        log(f"Avg KHAN Search: {avg_KHAN_time:.6f} seconds")
+                        log(f"Avg Naive Search:   {avg_naive_time:.6f} seconds")
+                        log(f"Avg Precision:      {avg_precision:.4f}")
+                        log(f"Avg Recall:         {avg_recall:.4f}")
+                        log(f"Avg Hash Time:      {avg_hash_time:.6f} seconds")
+                        log(f"Avg Probe Time:    {avg_probe_time:.6f} seconds")
+                        log(f"Avg Verification Time: {avg_verification_time:.6f} seconds")
+                        log(f"Avg False Candidate Rate: {avg_false_candidate_rate:.6f} ")
+                        log(f"Avg Postings Traversed: {avg_postings_traversed:.2f} ")
+                        log(f"Avg Verified Counts: {avg_verified_counts:.2f} ")
+                        log(f"Avg Rejected Counts: {avg_rejected_counts:.2f} ")
+                        
+                        log("")
 
 
