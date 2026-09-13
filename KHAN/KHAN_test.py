@@ -12,7 +12,7 @@ from data_dir import DATASETS_DIR
 
 CUR_DIR: str = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(CUR_DIR)
-DATASETS = ["imagenet", "imdb_wiki", "insta_1m", "mirflickr"]
+DATASETS = ["imagenet", "imdb_wiki", "insta_1m", "mirflickr", "imagenet_penultimate"]
 
 from KHAN import  KHAN, BruteForceHashSearch
 
@@ -328,8 +328,8 @@ if __name__ == "__main__":
         "-d",
         type=str,
         nargs="+",
-        default=["all"],
-        help="The dataset name(s) [imagenet(default), imdb_wiki, insta_1m, mirflickr, all]"
+        default=["imagenet"],
+        help="The dataset name(s) [imagenet(default), imdb_wiki, insta_1m, mirflickr, imagenet_penultimate all]"
     )
     parser.add_argument(
         "--num-features",
