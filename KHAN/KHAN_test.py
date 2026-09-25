@@ -315,6 +315,7 @@ def test_KHAN(
 
 
 if __name__ == "__main__":
+    # region argument parsing
     parser = ArgumentParser("Test KHAN implementation")
     parser.add_argument(
         "--data-path",

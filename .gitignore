@@ -63,6 +63,7 @@ results.txt
 odyssey_results.txt
 heaptrack_report.txt
 KHAN_results.txt
+FLINNG/FLINNG_results.txt
 *.zst
 
 # some files i created to debug
