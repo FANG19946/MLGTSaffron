@@ -33,6 +33,10 @@ public:
     uint mL_;
     uint ep_;
     uint max_layer_;
+    bool extendCandidates_;
+    bool keepPrunedConnections_;
+    vector<float> dot_products_;
+    vector<uint> reset_dot_products_;
     std::mt19937 rng_;
     std::uniform_real_distribution<double> dist_;
     vector<Node> hnsw_graph_;
@@ -52,9 +56,13 @@ public:
         rng_(42),
         dist_(0.0, 1.0),
         ep_(ep),
-        max_layer_(0)
+        max_layer_(0),
+        extendCandidates_(false),
+        keepPrunedConnections_(false)
     {
+        // UPDATE: ep_ needs special handling for empty graph.
         hnsw_graph_.resize(num_features_);
+        dot_products_.assign(num_features_, 2.0f);
         // Insert the points sequentially and build the hnsw_graph_
         for(uint i = 0; i < num_features_; ++i){
             insert(i);
@@ -62,7 +70,10 @@ public:
 
 
     }
-
+    /**
+     * @brief Inserts a point in the HNSW graph.
+     * @param item_id The ID of the item to insert.
+     */
     void insert(uint item_id){
         double x = dist(rng_);
         hnsw_graph_[item_id].max_layer = static_cast<uint>(-std::log(x) * mL_);
@@ -77,12 +88,12 @@ public:
         // Finding Entry Points till the layer in which the item appears is reached.
         for(uint layer = max_layer_; layer > hnsw_graph_[item_id].max_layer; --layer){
             // Search for neighbors in the current layer
-            W = search_layer(item_id, ep, ef=1, layer);
+            W = search_layer(item_id, ep, 1, layer);
             // Get closest point to query item_id.
             ep = get_closest_point(item_id, W);
             
         }
-        for(uint layer = hnsw_graph_[item_id].max_layer; layer >=0; --layer){
+        for(int layer = hnsw_graph_[item_id].max_layer; layer >=0; --layer){
             W = search_layer(item_id, ep, efConstruction_, layer);
             // Select M closest neighbors from W
             vector<uint> selected_neighbors = select_neighbors(item_id, W, M_);
@@ -97,21 +108,101 @@ public:
         
     }
 
-
-    uint get_closest_point(uint item_id, const vector<uint>& W) {
+    // UPDATE: This part needs to be reconfigured since we should rather pass the query vector than the item_id.
+    /**
+     * @brief Gives the closest point's item_id from the query item_id from the list of candidates W and deletes it from W.
+     * @param query_id The item_id of the query point.
+     * @param W The list of candidate points.
+     * @return The item_id of the closest point.
+     */
+    uint get_closest_point(uint query_id,  vector<uint>& W) {
         float best_similarity = -1.0f;
         uint best_item_id = 0;
+        uint best_index = 0;
 
-        for (const uint& candidate_id : W) {
-            float similarity =
-                data_eigen_.row(item_id).dot(data_eigen_.row(candidate_id));
+        for (size_t i = 0; i < W.size(); ++i) {
+            uint candidate_id = W[i];
+            if(dot_products_[candidate_id] == 2.0f){
+                dot_products_[candidate_id] = data_eigen_.row(query_id).dot(data_eigen_.row(candidate_id));
+                reset_dot_products_.push_back(candidate_id);
+            } 
+            float similarity = dot_products_[candidate_id];
 
             if (similarity > best_similarity) {
                 best_similarity = similarity;
                 best_item_id = candidate_id;
+                best_index = i;
             }
         }
+        // Remove the selected point from W
+        W[best_index] = W.back();
+        W.pop_back();
         return best_item_id;
+    }
+
+    /**
+     * @brief Selects neighbors based on the heuristic technique described in the HNSW paper. Basically minimize the distance between the neighbors and the query point while maximizing the distance between the neighbors themselves.
+     * @param query The item_id of the query point.
+     * @param C The list of candidate points.
+     * @param M The maximum number of neighbors to select.
+     * @param layer The layer in which the neighbors are being selected.
+     * @param extendCandidates Whether to extend the candidate list with neighbors of the candidates.
+     * @param keepPrunedConnections Whether to keep pruned connections in the graph.
+
+     * @return M elements selected from C based on the heuristic technique.
+     */
+     vector<uint> select_neighbors(uint query, const vector<uint>& C, uint M, uint layer, bool extendCandidates = false, bool keepPrunedConnections = false){
+        vector<uint> W = C;
+        unordered_set<uint> W_set(W.begin(), W.end());
+        
+        if(extendCandidates){
+            // Extend the candidate list with neighbors of the candidates
+            for(const uint& candidate : C){
+                const Node& candidate_node = hnsw_graph_[candidate];
+                if(layer <= candidate_node.max_layer){
+                    uint offset = candidate_node.offsets[layer];
+                    uint degree = candidate_node.degrees[layer];
+                    for(uint i = 0; i < degree; ++i){
+                        if(W_set.find(candidate_node.neighbors[offset + i]) == W_set.end()){
+                            W.push_back(candidate_node.neighbors[offset + i]);
+                            W_set.insert(candidate_node.neighbors[offset + i]);
+                        }
+                    }
+                }
+                        
+            }
+        }
+        vector<uint> W_d;
+        vector<uint> selected_neighbors;
+
+        while(W.size()!=0 && selected_neighbors.size() < M){
+            
+            // Find the closest point to the query in W
+            uint closest_point = get_closest_point(query, W);
+            float similarity_W = dot_products_[closest_point];
+            bool add_to_selected = true;
+            for(const uint& selected : selected_neighbors){
+                float similarity_selected_neighbors = data_eigen_.row(closest_point).dot(data_eigen_.row(selected));
+                if(similarity_selected_neighbors > similarity_W){
+                    add_to_selected = false;
+                    break;
+                }
+            }
+            if(add_to_selected){
+                selected_neighbors.push_back(closest_point);
+            }
+            else{
+                W_d.push_back(closest_point);
+            }
+        }
+        if(keepPrunedConnections){
+            // Add some of the pruned connections to the selected neighbors
+            while(selected_neighbors.size() < M && W_d.size() > 0){
+                uint closest_point = get_closest_point(query, W_d);
+                selected_neighbors.push_back(closest_point);
+            }
+        }
+        return selected_neighbors;
     }
 
 
