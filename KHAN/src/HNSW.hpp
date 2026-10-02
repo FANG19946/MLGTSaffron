@@ -301,6 +301,18 @@ public:
     }
 
 
+    vector<uint> search(uint query_id, uint ef){
+        vector<uint> Found_Neighbors;
+        uint ep = ep_;
+        for(uint layer = max_layer_; layer > 0; --layer){
+            Found_Neighbors = search_layer(query_id, ep, 1, layer);
+            ep = get_closest_point(query_id, Found_Neighbors);
+        }
+        Found_Neighbors = search_layer(query_id, ep, ef, 0);
+        return Found_Neighbors;
+    }
+
+
 
 };
 
