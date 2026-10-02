@@ -37,6 +37,8 @@ public:
     bool keepPrunedConnections_;
     vector<float> dot_products_;
     vector<uint> reset_dot_products_;
+    vector<bool> visited_;
+    vector<uint> reset_visited_;
     std::mt19937 rng_;
     std::uniform_real_distribution<double> dist_;
     vector<Node> hnsw_graph_;
@@ -63,6 +65,7 @@ public:
         // UPDATE: ep_ needs special handling for empty graph.
         hnsw_graph_.resize(num_features_);
         dot_products_.assign(num_features_, 2.0f);
+        visited_.assign(num_features_, false);
         // Insert the points sequentially and build the hnsw_graph_
         for(uint i = 0; i < num_features_; ++i){
             insert(i);
@@ -141,6 +144,34 @@ public:
     }
 
     /**
+     * @brief Gives the farthest point's item_id from the query item_id from the list of candidates W and deletes it from W.
+     * @param query_id The item_id of the query point.
+     * @param W The list of candidate points.
+     * @return The item_id of the farthest point.
+     */
+    uint get_farthest_point(uint query_id,  vector<uint>& W) {
+        float worst_similarity = 1.0f;
+        uint worst_item_id = 0;
+        uint worst_index = 0;
+
+        for (size_t i = 0; i < W.size(); ++i) {
+            uint candidate_id = W[i];
+            if(dot_products_[candidate_id] == 2.0f){
+                dot_products_[candidate_id] = data_eigen_.row(query_id).dot(data_eigen_.row(candidate_id));
+                reset_dot_products_.push_back(candidate_id);
+            } 
+            float similarity = dot_products_[candidate_id];
+
+            if (similarity < worst_similarity) {
+                worst_similarity = similarity;
+                worst_item_id = candidate_id;
+                worst_index = i;
+            }
+        }
+        return worst_item_id;
+    }
+
+    /**
      * @brief Selects neighbors based on the heuristic technique described in the HNSW paper. Basically minimize the distance between the neighbors and the query point while maximizing the distance between the neighbors themselves.
      * @param query The item_id of the query point.
      * @param C The list of candidate points.
@@ -204,6 +235,71 @@ public:
         }
         return selected_neighbors;
     }
+
+    /**
+     * @brief Search a layer of the HNSW graph for neighbors of a query point.
+     * @param query The item_id of the query point.
+     * @param ep The item_id of the entry point for the search.
+     * @param ef The number of candidates to consider during the search.
+     * @param layer The layer in which the neighbors are being selected.
+
+     * @return Elements that are closest to the query point according to the similarity threshold.
+     */
+    // UPDATE: This part needs to be reconfigured since we should rather pass the query vector than the item_id.
+     vector<uint> search_layer(uint query, uint ep, uint ef, uint layer){
+        visited_[ep] = true;
+        reset_visited_.push_back(ep);
+        vector<uint> Found_Neighbors;
+        vector<uint> Candidates;
+        Candidates.push_back(ep);
+        Found_Neighbors.push_back(ep);
+        while(!Candidates.empty()){
+            uint closest_candidate = get_closest_point(query, Candidates);
+            uint farthest_neighbor = get_farthest_point(query, Found_Neighbors);
+            if(dot_products_[closest_candidate] < dot_products_[farthest_neighbor]){
+                break;
+            }
+            const Node& closest_candidate_node = hnsw_graph_[closest_candidate];
+            if(layer <= closest_candidate_node.max_layer){
+                uint offset = closest_candidate_node.offsets[layer];
+                uint degree = closest_candidate_node.degrees[layer];
+                for(uint i = 0; i < degree; ++i){
+                    uint neighbor = closest_candidate_node.neighbors[offset + i];
+                    if(!visited_[neighbor]){
+                        visited_[neighbor] = true;
+                        reset_visited_.push_back(neighbor);
+                        farthest_neighbor = get_farthest_point(query, Found_Neighbors);
+                        
+                        if(dot_products_[neighbor] == 2.0f){
+                            dot_products_[neighbor] = data_eigen_.row(query).dot(data_eigen_.row(neighbor));
+                            reset_dot_products_.push_back(neighbor);
+                        }
+                        if(dot_products_[neighbor] > dot_products_[farthest_neighbor] || Found_Neighbors.size() < ef){
+                            Candidates.push_back(neighbor);
+                            Found_Neighbors.push_back(neighbor);
+                            if(Found_Neighbors.size() > ef){
+                                uint worst_neighbor = get_farthest_point(query, Found_Neighbors);
+                                // Remove the worst neighbor from Found_Neighbors
+                                for (size_t i = 0; i < Found_Neighbors.size(); ++i) {
+                                    if (Found_Neighbors[i] == worst_neighbor) {
+                                        Found_Neighbors[i] = Found_Neighbors.back();
+                                        Found_Neighbors.pop_back();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for(const uint& id : reset_visited_){
+            visited_[id] = false;
+        }
+        reset_visited_.clear();
+        return Found_Neighbors;
+    }
+
 
 
 };
